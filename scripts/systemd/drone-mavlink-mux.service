@@ -1,0 +1,31 @@
+# MAVLink multiplexor: Pixhawk UART/USB → lokalni UDP za Django + camera_trigger.
+#
+# Namestitev:
+#   sudo cp scripts/systemd/drone-mavlink-mux.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now drone-mavlink-mux
+#
+# Django (.env): UAV_SERIAL_DEVICE=udp:127.0.0.1:14550
+# camera_trigger: --connect udp:127.0.0.1:14551
+[Unit]
+Description=UAV MAVLink UART/USB → UDP multiplexor
+After=dev-ttyACM0.device network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dron
+Group=dialout
+WorkingDirectory=/home/dron/mission_planner
+EnvironmentFile=-/home/dron/mission_planner/.env
+ExecStart=/home/dron/mission_planner/.venv/bin/python \
+    /home/dron/mission_planner/scripts/mavlink_mux.py \
+    --device auto --baud 115200 \
+    --out 127.0.0.1:14550 --out 127.0.0.1:14551
+Restart=always
+RestartSec=2
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

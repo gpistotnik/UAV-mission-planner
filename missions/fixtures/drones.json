@@ -1,0 +1,18 @@
+[
+  {
+    "model": "missions.droneprofile",
+    "pk": 1,
+    "fields": {
+      "slug": "f450-pixhawk-rpi-imx477",
+      "display_name": "F450 + Pixhawk 2.4.8 + RPi (Sony IMX477)",
+      "manufacturer": "Custom",
+      "max_speed_ms": "12.00",
+      "max_altitude_m": "120.00",
+      "sensor_width_mm": "6.287",
+      "sensor_height_mm": "4.712",
+      "focal_length_mm": "6.000",
+      "image_width_px": 4056,
+      "image_height_px": 3040
+    }
+  }
+]

@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+
+{% block title %}{{ mission.name }}{% endblock %}
+
+{% block content %}
+  <p><a href="{% url 'missions:list' %}">← Vse misije</a></p>
+
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
+    <div>
+      <h2>{{ mission.name }}</h2>
+      {% if mission.description %}<p>{{ mission.description }}</p>{% endif %}
+    </div>
+    <div style="display:flex;gap:8px;">
+      <a href="{% url 'missions:planner_edit' mission.pk %}"
+         style="background:#f5f5f5;border:1px solid #ccc;padding:8px 12px;border-radius:4px;text-decoration:none;color:#333;">
+        ✏ Uredi
+      </a>
+      <a href="/api/missions/{{ mission.pk }}/items/?format=text" target="_blank"
+         style="background:#f5f5f5;border:1px solid #ccc;padding:8px 12px;border-radius:4px;text-decoration:none;color:#333;">
+        ⤓ Izpis MAVLink ukazov
+      </a>
+      <a href="{% url 'core:dashboard' %}"
+         style="background:#1f6feb;color:#fff;padding:8px 12px;border-radius:4px;text-decoration:none;">
+        ➤ Poslji na drona (nadzor)
+      </a>
+    </div>
+  </div>
+
+  {% if warnings %}
+    <ul style="background:#fef3c7;border:1px solid #fcd34d;border-radius:4px;padding:10px 10px 10px 28px;max-width:52em;">
+      {% for w in warnings %}<li>{{ w }}</li>{% endfor %}
+    </ul>
+  {% endif %}
+
+  <h3>Parametri</h3>
+  <ul>
+    <li>Drone: {{ mission.drone.display_name }}</li>
+    <li>Vzletišče:
+        {% if mission.home_lat %}{{ mission.home_lat }}, {{ mission.home_lon }}
+          (AMSL {{ mission.home_alt_amsl_m|default:"—" }} m)
+        {% else %}—{% endif %}</li>
+    <li>Referenca višine: {{ mission.get_altitude_mode_display }}</li>
+    <li>Privzeta višina: {{ mission.default_altitude_m }} m</li>
+    <li>Privzeta hitrost: {{ mission.default_speed_ms }} m/s</li>
+    <li>Dejanje ob koncu: {{ mission.get_finish_action_display }}</li>
+    <li>Letalnih točk: {{ point_count }} ·
+        MAVLink ukazov: {{ item_count }}</li>
+  </ul>
+
+  <h3>Gradniki ({{ elements|length }})</h3>
+  {% if elements %}
+    <table style="border-collapse:collapse;" border="1" cellpadding="4">
+      <thead>
+        <tr><th>#</th><th>tip</th><th>oznaka</th>
+            <th>lat</th><th>lon</th><th>h [m]</th><th>v [m/s]</th>
+            <th>dejanje</th><th>vzorec</th></tr>
+      </thead>
+      <tbody>
+        {% for e in elements %}
+          <tr>
+            <td>{{ e.order }}</td>
+            <td>{{ e.get_element_type_display }}</td>
+            <td>{{ e.name|default:"—" }}</td>
+            <td>{{ e.lat|default:"—" }}</td>
+            <td>{{ e.lon|default:"—" }}</td>
+            <td>{{ e.altitude_m }}</td>
+            <td>{{ e.speed_ms|default:"—" }}</td>
+            <td>{% if e.is_waypoint %}{{ e.get_action_type_display }}{% else %}—{% endif %}</td>
+            <td>{% if e.is_map %}{{ e.get_pattern_display }}{% else %}—{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}<p>Še ni nobenega gradnika.</p>{% endif %}
+
+  <h3>Linearizirana pot ({{ point_count }})</h3>
+  {% if points %}
+    <details>
+      <summary>Pokaži vse točke</summary>
+      <table style="border-collapse:collapse;margin-top:8px;" border="1" cellpadding="3">
+        <thead>
+          <tr><th>#</th><th>lat</th><th>lon</th><th>h [m]</th>
+              <th>vir</th><th>dejanje</th></tr>
+        </thead>
+        <tbody>
+          {% for p in points %}
+            <tr><td>{{ p.order }}</td><td>{{ p.lat|floatformat:7 }}</td>
+                <td>{{ p.lon|floatformat:7 }}</td><td>{{ p.altitude_m }}</td>
+                <td>{{ p.source }}</td><td>{{ p.action_type }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </details>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,38 @@
+# Preklop Wi-Fi (klient/AP) prek fizicnega stikala na GPIO19.
+#
+# Namestitev:
+#   sudo cp scripts/systemd/drone-wifi-gpio-switch.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now drone-wifi-gpio-switch
+#
+# POMEMBNO: ta demon in drone-wifi-fallback.service (casovni fallback ob
+# zagonu) oba upravljata isti nmcli profil "dron-ap". Ce je fizicno stikalo
+# vgrajeno, izklopi casovni fallback, da si ne nasprotujeta:
+#   sudo systemctl disable --now drone-wifi-fallback
+# Glej docs/magistrska/11_wifi_fallback.md, razdelek o fizicnem stikalu.
+#
+# Tece kot root: gpiozero na nekaterih namestitvah zahteva dostop do
+# /dev/gpiochip*, nmcli con up/down pa brez root uporabnika/polkit pravil
+# vrne "Insufficient privileges" (enako kot pri drone-wifi-fallback.service).
+[Unit]
+Description=Preklop Wi-Fi (klient/AP) prek fizicnega stikala GPIO19
+# Po wait-online, da NM morebiti ze poveze klient — demon ga nato ob
+# pin=HIGH namerno odklopi in dvigne AP (glej apply_mode / _enforce_pin).
+After=NetworkManager.service NetworkManager-wait-online.service
+Wants=NetworkManager.service
+ConditionPathExists=/home/dron/mission_planner/scripts/wifi_gpio_switch.py
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/dron/mission_planner
+ExecStart=/usr/bin/python3 /home/dron/mission_planner/scripts/wifi_gpio_switch.py \
+    --pin 19 --ap-con-name dron-ap --iface wlan0 \
+    --runtime-dir /home/dron/mission_planner/run --grace 30
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

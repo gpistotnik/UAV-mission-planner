@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+
+{% block title %}Misije{% endblock %}
+
+{% block content %}
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <h2>Misije</h2>
+    <a href="{% url 'missions:planner_new' %}"
+       style="background:#1f6feb;color:#fff;padding:8px 14px;border-radius:4px;text-decoration:none;">
+      + Nova misija
+    </a>
+  </div>
+
+  {% if missions %}
+    <table style="border-collapse:collapse;width:100%;margin-top:12px;">
+      <thead>
+        <tr style="text-align:left;border-bottom:1px solid #ddd;">
+          <th>Ime</th>
+          <th>Drone</th>
+          <th>Referenca višine</th>
+          <th>Priv. višina [m]</th>
+          <th>Priv. hitrost [m/s]</th>
+          <th>Zadnja sprememba</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in missions %}
+          <tr style="border-bottom:1px solid #f0f0f0;">
+            <td><a href="{{ m.get_absolute_url }}">{{ m.name }}</a></td>
+            <td>{{ m.drone.display_name }}</td>
+            <td>{{ m.get_altitude_mode_display }}</td>
+            <td>{{ m.default_altitude_m }}</td>
+            <td>{{ m.default_speed_ms }}</td>
+            <td>{{ m.updated_at|date:"Y-m-d H:i" }}</td>
+            <td><a href="{% url 'missions:planner_edit' m.pk %}">Uredi →</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>Misij še ni.
+       (<a href="{% url 'missions:planner_new' %}">Ustvari prvo</a>)</p>
+  {% endif %}
+{% endblock %}

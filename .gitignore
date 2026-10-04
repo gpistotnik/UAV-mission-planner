@@ -1,0 +1,20 @@
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.env
+db.sqlite3
+db.sqlite3-journal
+staticfiles/
+node_modules/
+*.mo
+.idea/
+.vscode/
+.pytest_cache/
+pytest-cache-files-*/
+# Surovi zapisi letov in izhod analize --- podatki, ne koda.
+flightlogs/
+run/
+# Lokalne OSM ploščice Slovenije (scripts/download_slovenia_tiles.py) — GB, ne v git.
+data/tiles/

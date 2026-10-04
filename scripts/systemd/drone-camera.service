@@ -1,0 +1,17 @@
+[Unit]
+Description=Drone camera MJPEG stream (RPi CAM/DISP0)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=dron
+Group=video
+WorkingDirectory=/home/dron/mission_planner
+ExecStart=/usr/bin/python3 /home/dron/mission_planner/scripts/camera_stream.py \
+    --port 8090 --camera 0 --width 1280 --height 720 --fps 30 --quality 75
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

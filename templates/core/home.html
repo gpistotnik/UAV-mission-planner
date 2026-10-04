@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+  <h2>{{ title }}</h2>
+  <p>{{ subtitle }}</p>
+  <p>
+    <a href="{% url 'missions:list' %}">Prikaži misije →</a>
+  </p>
+{% endblock %}

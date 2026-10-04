@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Galerija{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'css/gallery.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="gallery-page">
+  <header class="gallery-header">
+    <div>
+      <h1>Galerija</h1>
+      <p class="gallery-intro">
+        Posnetki dejansko odletenih misij. Placeholderji in testni JPEG-i niso prikazani.
+      </p>
+    </div>
+    <div class="gallery-actions">
+      <button type="button" id="gal-refresh" class="gal-btn">Osveži</button>
+      <button type="button" id="gal-download-selected" class="gal-btn primary" disabled>
+        Prenesi izbrane
+      </button>
+      <button type="button" id="gal-download-other" class="gal-btn" disabled>
+        Prenesi ostale
+      </button>
+    </div>
+  </header>
+
+  {% if not can_control %}
+    <div class="gallery-warning">
+      Prenos zahteva prijavo.
+      <a href="{% url 'login' %}?next={{ request.path }}">Prijava</a>
+    </div>
+  {% endif %}
+
+  <div id="gal-status" class="gallery-status">Nalagam…</div>
+  <div id="gal-missions" class="gallery-missions"></div>
+  <section class="gallery-section" id="gal-other-section" style="display:none;">
+    <div class="gallery-section-head">
+      <h2>Ostale <span id="gal-other-count" class="gal-count"></span></h2>
+      <label class="gal-check-all">
+        <input type="checkbox" id="gal-other-all"> Izberi vse
+      </label>
+    </div>
+    <div id="gal-other" class="gallery-grid"></div>
+  </section>
+</div>
+
+<script>
+  window.PLANNER_BOOTSTRAP = {
+    mode: "gallery",
+    csrfToken: "{{ csrf_token }}",
+    canControl: {{ can_control|yesno:"true,false" }}
+  };
+</script>
+<script defer src="{% static 'js/planner.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% load static assets %}
+
+{% block title %}{% if is_new %}Nova misija{% else %}Urejanje misije{% endif %}{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'css/leaflet.css' %}">
+  <link rel="stylesheet" href="{% asset 'css/planner.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="planner-layout">
+  <aside class="planner-sidebar" id="planner-sidebar">
+    <div class="sidebar-topbar">
+      <button type="button" id="btn-sidebar-close" class="sidebar-close" aria-label="Zapri panel">×</button>
+    </div>
+    <div class="toolbar">
+      <button type="button" id="btn-add-wp" class="tool-btn wp">+ Waypoint</button>
+      <button type="button" id="btn-add-map" class="tool-btn map">+ Map</button>
+      <button type="button" id="btn-delete" class="tool-btn del" disabled title="Izbriši izbran gradnik">Izbriši</button>
+    </div>
+
+    <section>
+      <h3>Misija</h3>
+      <div id="mission-header"></div>
+    </section>
+
+    <section>
+      <h3>Gradniki</h3>
+      <div id="element-list" class="elements"></div>
+    </section>
+
+    <section>
+      <h3>Podrobnosti</h3>
+      <div id="element-detail"></div>
+    </section>
+
+    <button type="button" id="save-btn" class="primary">Shrani</button>
+    <button type="button" id="btn-test-flight" class="secondary">▶ Test let</button>
+    <p class="hint">Dotik / vlek na karti · Izbriši gumb ali DEL · ESC prekliče orodje</p>
+  </aside>
+
+  <div class="map-wrap">
+    <div class="map-fab" id="map-fab">
+      <button type="button" id="btn-panel-toggle" class="fab-btn" aria-label="Odpri panel">☰</button>
+      <button type="button" id="fab-add-wp" class="fab-btn wp" title="Waypoint">+ WP</button>
+      <button type="button" id="fab-add-map" class="fab-btn map" title="Map">+ Map</button>
+      <button type="button" id="fab-delete" class="fab-btn del" disabled title="Izbriši">⌫</button>
+    </div>
+    <div id="map" class="planner-map"></div>
+
+    <!-- Povezava s Pixhawkom -->
+    <div id="telemetry-panel" class="tm-panel">
+      <div class="tm-title">Povezava s Pixhawkom</div>
+      <div class="tm-row">
+        <select id="tm-port" class="tm-port"></select>
+        <button type="button" id="tm-refresh" title="Osvezi seznam naprav">⟳</button>
+      </div>
+      <div class="tm-row">
+        <select id="tm-baud" class="tm-baud">
+          <option value="57600">57600</option>
+          <option value="115200" selected>115200</option>
+          <option value="230400">230400</option>
+          <option value="460800">460800</option>
+          <option value="921600">921600</option>
+        </select>
+        <button type="button" id="tm-connect"  class="tm-btn ok">Poveži</button>
+        <button type="button" id="tm-disconnect" class="tm-btn err" disabled>Prekini</button>
+      </div>
+      <div id="tm-status" class="tm-status off">● ni povezave</div>
+      <div id="tm-error" class="tm-error" style="display:none;"></div>
+    </div>
+
+    <!-- HUD (skrit dokler ni povezave) -->
+    <div id="hud" class="hud" style="display:none;">
+      <div class="hud-row top">
+        <span id="hud-mode" class="mode">—</span>
+        <span id="hud-armed" class="disarmed">DISARM</span>
+      </div>
+      <div class="hud-grid">
+        <div><label>ALT</label><span id="hud-alt">—</span></div>
+        <div><label>GSpd</label><span id="hud-gspd">—</span></div>
+        <div><label>VSpd</label><span id="hud-vspd">—</span></div>
+        <div><label>HDG</label><span id="hud-hdg">—</span></div>
+        <div><label>Roll</label><span id="hud-roll">—</span></div>
+        <div><label>Pitch</label><span id="hud-pitch">—</span></div>
+        <div><label>Bat</label><span id="hud-batv">—</span></div>
+        <div><label>%</label><span id="hud-batp">—</span></div>
+        <div><label>GPS</label><span id="hud-gps">—</span></div>
+        <div><label>Sat</label><span id="hud-sats">—</span></div>
+        <div><label>HDOP</label><span id="hud-hdop">—</span></div>
+        <div><label>MAG</label><span id="hud-mag">—</span></div>
+        <div><label>MAG XY</label><span id="hud-mag-xy">—</span></div>
+        <div><label>MAG cal</label><span id="hud-mag-cal">—</span></div>
+      </div>
+    </div>
+
+    <div id="test-flight-overlay" class="tf-overlay" style="display:none;">
+      <div class="tf-title">Test let</div>
+      <div class="tf-progress"><div id="tf-bar"></div></div>
+      <div id="tf-info">0:00 / 0:00</div>
+      <div class="tf-controls">
+        <button type="button" id="tf-play"  style="display:none;">▶</button>
+        <button type="button" id="tf-pause">❚❚</button>
+        <button type="button" id="tf-stop">■</button>
+        <label>x
+          <select id="tf-speed">
+            <option value="1">1×</option>
+            <option value="2">2×</option>
+            <option value="5" selected>5×</option>
+            <option value="10">10×</option>
+            <option value="20">20×</option>
+            <option value="50">50×</option>
+          </select>
+        </label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script id="planner-bootstrap" type="application/json">{{ mission_json|safe }}</script>
+<script id="planner-drones" type="application/json">{{ drones_json|safe }}</script>
+<script>
+  window.PLANNER_BOOTSTRAP = {
+    mode: "planner",
+    mission: JSON.parse(document.getElementById("planner-bootstrap").textContent),
+    drones: JSON.parse(document.getElementById("planner-drones").textContent),
+    csrfToken: "{{ csrf_token }}",
+    apiUrl: "{{ api_url }}"
+  };
+</script>
+<script defer src="{% asset 'js/planner.js' %}"></script>
+{% endblock %}

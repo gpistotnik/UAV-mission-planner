@@ -1,0 +1,5 @@
+# Razvoj in testiranje / Development and testing.
+#   pip install -r requirements.txt -r requirements-dev.txt
+pytest>=8.0
+pytest-django>=4.8
+piexif>=1.1.3

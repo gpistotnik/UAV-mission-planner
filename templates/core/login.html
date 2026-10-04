@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+
+{% block title %}Prijava{% endblock %}
+
+{% block content %}
+  <h2>Prijava</h2>
+  <p style="max-width:44em;color:#555;">
+    
+      Prijava je potrebna za upravljanje letalnika (povezava s krmilnikom,
+      prenos misije, armanje, zagon). Nacrtovanje misij in ogled telemetrije
+      sta dostopna brez prijave.
+    
+  </p>
+
+  {% if form.errors %}
+    <p style="color:#b91c1c;">Napacno uporabnisko ime ali geslo.</p>
+  {% endif %}
+
+  <form method="post" style="max-width:22em;display:grid;gap:10px;">
+    {% csrf_token %}
+    <label>Uporabnisko ime
+      <input type="text" name="username" autofocus required
+             style="width:100%;padding:6px;">
+    </label>
+    <label>Geslo
+      <input type="password" name="password" required style="width:100%;padding:6px;">
+    </label>
+    <button type="submit"
+            style="background:#1f6feb;color:#fff;border:0;padding:9px;border-radius:4px;">
+      Prijava
+    </button>
+    <input type="hidden" name="next" value="{{ next }}">
+  </form>
+{% endblock %}

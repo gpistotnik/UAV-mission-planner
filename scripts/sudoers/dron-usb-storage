@@ -1,0 +1,2 @@
+# GUI sme izbrati samo /dev napravo; root-owned helper sam preveri USB particijo.
+dron ALL=(root) NOPASSWD: /usr/local/sbin/mission-planner-usb-storage select /dev/*
