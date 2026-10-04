@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="sl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Načrtovalnik misij UAV{% endblock %}</title>
+  <style>
+    :root { --fg:#1a1a1a; --bg:#fafafa; --accent:#1f6feb; }
+    body { margin:0; font-family: system-ui, sans-serif; color:var(--fg); background:var(--bg); }
+    header { display:flex; align-items:center; justify-content:space-between;
+             padding: 10px 20px; background:#fff; border-bottom:1px solid #e5e5e5; gap: 16px; }
+    header h1 { font-size: 1.05rem; margin:0; flex-shrink: 0; }
+    header nav { display: flex; gap: 4px; flex: 1; }
+    header nav a {
+      padding: 6px 14px;
+      text-decoration: none;
+      color: #475569;
+      border-radius: 4px;
+      font-size: 0.92rem;
+      font-weight: 500;
+      transition: background 0.1s;
+    }
+    header nav a:hover { background: #f1f5f9; }
+    header nav a.active { background: #1f6feb; color: #fff; }
+    .wifi-status {
+      display: inline-flex; align-items: baseline; gap: 6px;
+      margin-left: 8px; padding: 4px 10px;
+      font-family: ui-monospace, monospace; font-size: 0.82rem;
+      border: 1px solid #e2e8f0; border-radius: 4px; background: #f8fafc;
+      white-space: nowrap;
+    }
+    .wifi-status label {
+      color: #94a3b8; font-size: 0.7rem; text-transform: uppercase; font-weight: 600;
+    }
+    .wifi-status span { color: #1e293b; font-weight: 600; }
+    .wifi-status span.wifi-ap { color: #d97706; }
+    .wifi-status span.wifi-client { color: #16a34a; }
+    .wifi-status span.wifi-offline { color: #94a3b8; font-weight: 500; }
+    .wifi-status span.wifi-pending { color: #d97706; }
+    .header-actions { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+    .hdr-battery {
+      display: inline-flex; align-items: baseline; gap: 6px;
+      padding: 4px 10px;
+      font-family: ui-monospace, monospace; font-size: 0.82rem;
+      border: 1px solid #e2e8f0; border-radius: 4px; background: #f8fafc;
+      white-space: nowrap;
+    }
+    .hdr-battery label {
+      color: #94a3b8; font-size: 0.7rem; text-transform: uppercase; font-weight: 600;
+    }
+    .hdr-battery span { color: #1e293b; font-weight: 600; }
+    .hdr-battery span.bat-ok { color: #16a34a; }
+    .hdr-battery span.bat-warn { color: #d97706; }
+    .hdr-battery span.bat-low { color: #dc2626; }
+    .hdr-battery span.bat-na { color: #94a3b8; font-weight: 500; }
+    .hdr-poweroff {
+      padding: 5px 12px; border: 1px solid #991b1b; border-radius: 4px;
+      background: #b91c1c; color: #fff; font-size: 0.82rem; font-weight: 600;
+      cursor: pointer; white-space: nowrap;
+    }
+    .hdr-poweroff:hover { filter: brightness(1.08); }
+    .hdr-poweroff:disabled { background: #d1d5db; border-color: #9ca3af; cursor: not-allowed; }
+    main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <header>
+    <h1>🚁 UAV F450</h1>
+    <nav>
+      {% url 'missions:list' as missions_url %}
+      {% url 'core:dashboard' as dashboard_url %}
+      <div class="wifi-status" id="wifi-status" title="WiFi GPIO (GPIO19)">
+        <label>WiFi</label>
+        <span id="wifi-mode">—</span>
+      </div>
+      <a href="{{ missions_url }}"
+         class="{% if request.path|slice:'3:' == missions_url|slice:'3:' or '/misije' in request.path %}active{% endif %}">
+        Načrtovalnik
+      </a>
+      <a href="{{ dashboard_url }}"
+         class="{% if request.path == '/' or '/nadzor' in request.path %}active{% endif %}">
+        Nadzor
+      </a>
+      <a href="{% url 'gallery' %}"
+         class="{% if '/galerija' in request.path %}active{% endif %}">
+        Galerija
+      </a>
+      <a href="{% url 'test_flight' %}"
+         class="{% if '/test-polet' in request.path %}active{% endif %}">
+        Testni polet
+      </a>
+      <a href="{% url 'app_settings' %}"
+         class="{% if '/nastavitve' in request.path %}active{% endif %}">
+        Nastavitve
+      </a>
+    </nav>
+    <div class="header-actions">
+      <div class="hdr-battery" id="hdr-battery" title="Stanje baterije (Pixhawk)">
+        <label>Bat</label>
+        <span id="hdr-battery-pct" class="bat-na">—</span>
+      </div>
+      <button type="button" id="sys-poweroff" class="hdr-poweroff"
+              title="Varno ugasni RPi (sync + poweroff)">
+        ⏻ Ugasni
+      </button>
+    </div>
+  </header>
+  <main>{% block content %}{% endblock %}</main>
+  {% comment %}
+  Ena sama mreža /api/network/status/ za vse strani. planner.js posluša
+  dogodek uav-network-status (pasica preklopa), zato ne sme zagnati drugega pollerja.
+  {% endcomment %}
+  <script>
+  (function () {
+    var el = document.getElementById("wifi-mode");
+    if (!el) return;
+    window.__UAV_NET_POLL__ = true;
+    var SHORT = { CLIENT: "klient", AP: "AP" };
+    function paint(data) {
+      el.classList.remove("wifi-ap", "wifi-client", "wifi-offline", "wifi-pending");
+      if (!data || !data.available) {
+        el.textContent = "ni demona";
+        el.classList.add("wifi-offline");
+      } else {
+        var short = SHORT[data.mode] || data.mode || "—";
+        if (data.pending) {
+          var target = SHORT[data.pending.target] || data.pending.target;
+          var s = Math.max(0, Math.ceil(data.pending.remaining_s || 0));
+          el.textContent = short + " → " + target + " (" + s + " s)";
+          el.classList.add("wifi-pending");
+        } else {
+          el.textContent = short;
+          if (data.mode === "AP") el.classList.add("wifi-ap");
+          else if (data.mode === "CLIENT") el.classList.add("wifi-client");
+        }
+      }
+      try {
+        window.dispatchEvent(new CustomEvent("uav-network-status", { detail: data || { available: false } }));
+      } catch (e) { /* IE nima CustomEvent — ignoriraj */ }
+    }
+    function poll() {
+      fetch("/api/network/status/", { credentials: "same-origin" })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(paint)
+        .catch(function () { paint({ available: false }); });
+    }
+    poll();
+    setInterval(poll, 2000);
+  })();
+
+  (function () {
+    var el = document.getElementById("hdr-battery-pct");
+    var box = document.getElementById("hdr-battery");
+    if (!el) return;
+    function paint(pct, voltage, connected) {
+      el.classList.remove("bat-ok", "bat-warn", "bat-low", "bat-na");
+      if (!connected || pct === null || pct === undefined || pct < 0) {
+        el.textContent = "—";
+        el.classList.add("bat-na");
+        if (box) box.title = "Baterija: ni podatka";
+        return;
+      }
+      var p = Math.round(Number(pct));
+      el.textContent = p + "%";
+      if (p < 20) el.classList.add("bat-low");
+      else if (p < 40) el.classList.add("bat-warn");
+      else el.classList.add("bat-ok");
+      var tip = "Baterija: " + p + "%";
+      if (voltage !== null && voltage !== undefined) {
+        tip += " (" + Number(voltage).toFixed(1) + " V)";
+      }
+      if (box) box.title = tip;
+    }
+    function poll() {
+      fetch("/api/telemetry/", { credentials: "same-origin" })
+        .then(function (r) { return r.ok ? r.json() : Promise.reject(); })
+        .then(function (snap) {
+          var bat = (snap && snap.battery) || {};
+          paint(bat.remaining_pct, bat.voltage_v, !!(snap && snap.connected));
+        })
+        .catch(function () { paint(null, null, false); });
+    }
+    poll();
+    setInterval(poll, 2000);
+  })();
+
+  (function () {
+    var btn = document.getElementById("sys-poweroff");
+    if (!btn) return;
+    function csrf() {
+      var m = document.cookie.match(/(?:^|; )csrftoken=([^;]+)/);
+      if (m) return decodeURIComponent(m[1]);
+      var inp = document.querySelector("[name=csrfmiddlewaretoken]");
+      return inp ? inp.value : "";
+    }
+    function post(body) {
+      return fetch("/api/system/poweroff/", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrf()
+        },
+        body: JSON.stringify(body)
+      }).then(function (r) { return r.json(); });
+    }
+    btn.addEventListener("click", function () {
+      if (!window.confirm(
+        "Ugasnem Raspberry Pi?\n\n" +
+        "Najprej se sinhronizira disk, nato se RPi ugasne. " +
+        "Šele potem izklopi napajanje.\n\nNadaljujem?"
+      )) return;
+      var orig = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "Ugašam…";
+      post({ confirm: true }).then(function (data) {
+        if (data.auth_required) {
+          alert(data.error || "Potrebna je prijava.");
+          btn.disabled = false;
+          btn.textContent = orig;
+          return;
+        }
+        if (!data.ok && data.armed) {
+          if (!window.confirm(
+            "Pixhawk je ARMIRAN!\n\nUgasnem vseeno? (force)"
+          )) {
+            btn.disabled = false;
+            btn.textContent = orig;
+            return;
+          }
+          return post({ confirm: true, force: true }).then(function (data2) {
+            if (!data2.ok) {
+              alert(data2.error || "Napaka");
+              btn.disabled = false;
+              btn.textContent = orig;
+            } else {
+              btn.textContent = "Ugašanje…";
+            }
+          });
+        }
+        if (!data.ok) {
+          alert(data.error || "Napaka");
+          btn.disabled = false;
+          btn.textContent = orig;
+        } else {
+          btn.textContent = "Ugašanje…";
+        }
+      }).catch(function (e) {
+        alert(e.message || "Napaka");
+        btn.disabled = false;
+        btn.textContent = orig;
+      });
+    });
+  })();
+  </script>
+</body>
+</html>

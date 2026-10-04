@@ -1,0 +1,17 @@
+[Unit]
+Description=Drone WiFi fallback: client mode preferred, AP if no known network
+After=NetworkManager.service NetworkManager-wait-online.service
+Wants=NetworkManager-wait-online.service
+# Ne tece, ce so kakrsne koli prepoznane povezave aktivne ze takoj —
+# vedno zaganjamo, da preverimo
+ConditionPathExists=/home/dron/mission_planner/scripts/wifi_fallback.sh
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=root
+ExecStart=/home/dron/mission_planner/scripts/wifi_fallback.sh
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

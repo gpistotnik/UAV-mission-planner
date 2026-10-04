@@ -1,0 +1,32 @@
+# Deterministicni zajem slik, sinhroniziran z MAVLink dogodki.
+#
+# Namestitev:
+#   sudo cp scripts/systemd/drone-camera-trigger.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now drone-camera-trigger
+#
+# Predpogoj: drone-mavlink-mux (ali mavlink-router) izpostavlja UDP 14551.
+[Unit]
+Description=UAV deterministicni zajem slik (MAVLink -> kamera + EXIF)
+# drone-camera mora imeti kamero pred triggerjem, sicer trigger odpre
+# picamera2 in stream na :8090 ne more zagnati (Device busy).
+After=network-online.target drone-mavlink-mux.service drone-camera.service
+Wants=drone-mavlink-mux.service drone-camera.service
+
+[Service]
+Type=simple
+User=dron
+Group=dron
+WorkingDirectory=/home/dron/mission_planner
+EnvironmentFile=-/home/dron/mission_planner/.env
+# .venv mora biti ustvarjen z --system-site-packages, da je picamera2 viden.
+ExecStart=/home/dron/mission_planner/.venv/bin/python \
+    /home/dron/mission_planner/scripts/camera_trigger.py \
+    --connect udp:127.0.0.1:14551
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

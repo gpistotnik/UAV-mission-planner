@@ -1,0 +1,35 @@
+# UAV Mission Planner (Django) na portu 80.
+#
+# Namestitev:
+#   sudo cp scripts/systemd/mission-planner.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now mission-planner
+#
+# Port 80 zahteva CAP_NET_BIND_SERVICE (enako kot captive portal).
+# Captive portal (drone-captive-portal) prav tako želi :80 — ob tem
+# unit-u ga izklopi: sudo systemctl disable --now drone-captive-portal
+[Unit]
+Description=UAV Mission Planner (Django)
+After=network-online.target drone-mavlink-mux.service
+Wants=network-online.target drone-mavlink-mux.service
+Conflicts=drone-captive-portal.service
+
+[Service]
+Type=simple
+User=dron
+Group=dron
+WorkingDirectory=/home/dron/mission_planner
+EnvironmentFile=-/home/dron/mission_planner/.env
+# --noreload: en proces (brez starša/otroka), da se Pixhawk autoconnect
+# zanesljivo zazene (sicer je potreben RUN_MAIN=true v reloader child).
+ExecStart=/home/dron/mission_planner/.venv/bin/python \
+    /home/dron/mission_planner/manage.py runserver 0.0.0.0:80 --noreload
+# Port <1024 kot ne-root.
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+# Ne nastavi NoNewPrivileges/ozkega CapabilityBoundingSet: GUI prek sudoers
+# kliče izključno root-owned helper za preverjeno izbiro in mount USB particije.
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

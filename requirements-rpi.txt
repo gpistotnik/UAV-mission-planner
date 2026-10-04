@@ -1,0 +1,16 @@
+# Dodatki za Raspberry Pi na krovu.
+#   pip install -r requirements.txt -r requirements-rpi.txt
+#
+# OPOMBA: picamera2 se NE namesca s pipom. Na Raspberry Pi OS Bookworm:
+#     sudo apt install -y python3-picamera2
+# in virtualno okolje ustvari z dostopom do sistemskih paketov:
+#     python3 -m venv --system-site-packages ~/uav-env
+#
+# Ce picamera2 ni na voljo, scripts/camera_trigger.py tece v dry-run nacinu
+# (belezi sprozitve, ne zajema slik) in ne odpove.
+piexif>=1.1.3
+
+# GPIO stikalo za preklop Wi-Fi klient/AP (scripts/wifi_gpio_switch.py).
+# Na Raspberry Pi OS Bookworm je poleg gpiozero potreben se lgpio backend:
+#     sudo apt install -y python3-lgpio
+gpiozero>=2.0

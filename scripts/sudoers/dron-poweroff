@@ -1,0 +1,3 @@
+# Omogoči uporabniku dron varno ugasniti RPi iz GUI (Nadzor → Ugasni RPi).
+# Namestitev: sudo install -m 440 scripts/sudoers/dron-poweroff /etc/sudoers.d/dron-poweroff
+dron ALL=(root) NOPASSWD: /usr/bin/systemctl poweroff, /bin/systemctl poweroff, /sbin/poweroff, /usr/sbin/poweroff

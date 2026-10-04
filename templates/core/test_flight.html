@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% load static l10n %}
+
+{% block title %}Testni polet{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="tf-page">
+
+  <header class="tf-hero">
+    <h2>Samodejni testni polet</h2>
+    <p class="tf-intro">
+      Dva testa: (1) vzlet, lebdenje in pristanek; (2) vzlet, 2&nbsp;m sever,
+      slika, vrnitev, slika, pristanek. Namen je preveriti verigo ukazov
+      in kamero, ne leteti misije.
+    </p>
+  </header>
+
+  <div class="tf-warning" role="alert">
+    <span class="tf-warning-icon" aria-hidden="true">⚠</span>
+    <p>
+      Propelerji se bodo zavrteli. Pred zagonom: območje v polmeru 10&nbsp;m
+      prosto (za skok tudi prostor proti <strong>severu</strong>), RC
+      oddajnik vklopljen in v roki, prst na stikalu za preklop v ročni
+      način. Stani <strong>stran</strong> od drona, ne proti smeri leta.
+      Ta stran ne nadomešča pilota.
+    </p>
+  </div>
+
+  {% if not can_control %}
+    <div class="ctl-locked">
+      Za upravljanje letalnika je potrebna prijava.
+      <a href="{% url 'login' %}?next={{ request.path }}">Prijava</a>
+    </div>
+  {% endif %}
+
+  <div class="tf-grid">
+
+    <section class="tf-col">
+      <h3>Predpoletne preverbe</h3>
+      <ul id="tf-checks" class="tf-checks">
+        <li class="tf-check pending">Berem stanje…</li>
+      </ul>
+
+      <h3>Parametri</h3>
+      {# localize off: HTML type=number zahteva piko (3.0), ne slovenske vejice (3,0). #}
+      {% localize off %}
+      <div class="tf-param-groups">
+        <fieldset class="tf-param-group">
+          <legend>Test 1 — vzlet</legend>
+          <div class="tf-params">
+            <label>
+              <span class="tf-field-label">Višina <span class="tf-unit">[m]</span></span>
+              <input type="number" id="tf1-alt" value="{{ defaults.altitude_m }}"
+                     min="{{ min_altitude_m }}" max="{{ max_altitude_m }}" step="0.5">
+            </label>
+            <label>
+              <span class="tf-field-label">Lebdenje <span class="tf-unit">[s]</span></span>
+              <input type="number" id="tf1-hover" value="{{ defaults.hover_s }}"
+                     min="0" max="60" step="1">
+            </label>
+            <label>
+              <span class="tf-field-label">Odštevanje <span class="tf-unit">[s]</span></span>
+              <input type="number" id="tf1-countdown" value="{{ defaults.countdown_s }}"
+                     min="0" max="30" step="1">
+            </label>
+            <label>
+              <span class="tf-field-label">Najmanj satelitov</span>
+              <input type="number" id="tf1-sats" value="{{ defaults.min_satellites }}"
+                     min="0" max="30" step="1">
+            </label>
+            <label>
+              <span class="tf-field-label">Največji HDOP</span>
+              <input type="number" id="tf1-hdop" value="{{ defaults.max_hdop }}"
+                     min="0.1" max="200" step="0.1">
+            </label>
+            <label class="tf-check-inline">
+              <input type="checkbox" id="tf1-require-gps"
+                     {% if defaults.require_gps %}checked{% endif %}>
+              <span>Zahtevaj GPS</span>
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="tf-param-group">
+          <legend>Test 2 — skok</legend>
+          <div class="tf-params">
+            <label>
+              <span class="tf-field-label">Višina <span class="tf-unit">[m]</span></span>
+              <input type="number" id="tf2-alt" value="{{ hop_defaults.altitude_m }}"
+                     min="{{ min_altitude_m }}" max="{{ max_altitude_m }}" step="0.5">
+            </label>
+            <label>
+              <span class="tf-field-label">Odmik <span class="tf-unit">[m]</span>
+                <span class="tf-hint-inline">sever</span></span>
+              <input type="number" id="tf2-leg" value="{{ hop_defaults.leg_m }}"
+                     min="{{ min_leg_m }}" max="{{ max_leg_m }}" step="0.5">
+            </label>
+            <label>
+              <span class="tf-field-label">Odštevanje <span class="tf-unit">[s]</span></span>
+              <input type="number" id="tf2-countdown" value="{{ hop_defaults.countdown_s }}"
+                     min="0" max="30" step="1">
+            </label>
+            <label>
+              <span class="tf-field-label">Najmanj satelitov
+                <span class="tf-hint-inline">privzeto 12</span></span>
+              <input type="number" id="tf2-sats" value="{{ hop_defaults.min_satellites }}"
+                     min="0" max="30" step="1">
+            </label>
+            <label>
+              <span class="tf-field-label">Največji HDOP
+                <span class="tf-hint-inline">privzeto 1,2</span></span>
+              <input type="number" id="tf2-hdop" value="{{ hop_defaults.max_hdop }}"
+                     min="0.1" max="200" step="0.1">
+            </label>
+            <label class="tf-check-inline">
+              <input type="checkbox" id="tf2-require-gps"
+                     {% if hop_defaults.require_gps %}checked{% endif %}>
+              <span>Zahtevaj GPS</span>
+            </label>
+          </div>
+        </fieldset>
+      </div>
+      {% endlocalize %}
+      <div class="tf-params-actions">
+        <button type="button" id="tf-save" class="dash-btn primary">
+          Shrani
+        </button>
+        <span id="tf-save-msg" class="tf-save-msg" aria-live="polite"></span>
+      </div>
+      <p class="tf-hint">
+        Test 1 in Test 2 imata ločene GPS pragove (sateliti, HDOP).
+        Višina je omejena na 10&nbsp;m · Shrani zapiše oboje v bazo na napravi.
+      </p>
+    </section>
+
+    <section class="tf-col tf-col-run">
+      <h3>Izvedba</h3>
+
+      <div id="tf-phase" class="tf-phase idle">
+        <div class="tf-phase-name">pripravljen</div>
+        <div id="tf-phase-msg" class="tf-phase-msg">—</div>
+      </div>
+
+      <div class="tf-readout">
+        <div><label>Višina</label><span id="tf-alt-now">—</span></div>
+        <div><label>Najvišje</label><span id="tf-alt-peak">—</span></div>
+        <div><label>Način</label><span id="tf-mode">—</span></div>
+        <div><label>Stanje</label><span id="tf-armed">—</span></div>
+        <div><label>Čas</label><span id="tf-elapsed">—</span></div>
+        <div><label>Profil</label><span id="tf-profile">—</span></div>
+      </div>
+
+      <div class="tf-actions">
+        <div class="tf-start-row">
+          <button type="button" id="tf-start-hover" class="tf-btn go" disabled>
+            ▶ Test 1: vzlet
+          </button>
+          <button type="button" id="tf-start-hop" class="tf-btn go secondary" disabled>
+            ▶ Test 2: skok + sliki
+          </button>
+        </div>
+        <button type="button" id="tf-abort" class="tf-btn stop" disabled>
+          ■ PREKINI IN PRISTANI
+        </button>
+        <button type="button" id="tf-force-abort" class="tf-btn force" disabled
+                title="Če se zaporedje zacikla: takoj odkleni UI, LAND / force-disarm">
+          ⚠ FORCE CANCEL
+        </button>
+      </div>
+
+      <h3>Potek</h3>
+      <ol id="tf-events" class="tf-events">
+        <li class="tf-empty">Zaporedje še ni bilo zagnano.</li>
+      </ol>
+    </section>
+
+  </div>
+
+  <p class="tf-foot">
+    Zapis telemetrije se samodejno začne ob vzletu; najdeš ga med
+    letalnimi logi. Za slike mora teči camera-trigger na RPi.
+    <a href="{% url 'core:dashboard' %}">Nadzorna plošča</a>
+  </p>
+</div>
+
+<script>
+  window.PLANNER_BOOTSTRAP = {
+    mode: "testflight",
+    csrfToken: "{{ csrf_token }}"
+  };
+</script>
+<script defer src="{% static 'js/planner.js' %}"></script>
+{% endblock %}

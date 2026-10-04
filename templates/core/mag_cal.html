@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Kalibracija kompasa{% endblock %}
+
+{% block extra_head %}
+  <link rel="stylesheet" href="{% static 'css/dashboard.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="mc-page" id="mc-page">
+  <a class="mc-back" href="{% url 'core:dashboard' %}">← Nadzor</a>
+
+  <h1 class="mc-title">Kalibracija kompasa</h1>
+
+  {% if not can_control %}
+    <div class="ctl-locked">
+      Za kalibracijo je potrebna prijava.
+      <a href="{% url 'login' %}?next={{ request.path }}">Prijava</a>
+    </div>
+  {% endif %}
+
+  <div id="mc-conn" class="mc-conn off">Brez povezave s krmilnikom</div>
+
+  <div id="mc-phase" class="mc-phase idle">
+    <div id="mc-pct" class="mc-pct">—</div>
+    <div id="mc-status" class="mc-status">pripravljen</div>
+    <div class="mc-bar"><div id="mc-fill" class="mc-fill"></div></div>
+  </div>
+
+  <p id="mc-hint" class="mc-hint">
+    
+      Letalnik mora biti DISARMED. Po zagonu ga počasi obračaj v vse smeri
+      (kot žogo), dokler napredek ne pride do 100 % / uspeh.
+    
+  </p>
+
+  <div class="mc-readout">
+    <div><label>MAG</label><span id="mc-mag">—</span></div>
+    <div><label>MAG XY</label><span id="mc-mag-xy">—</span></div>
+    <div><label>Stanje</label><span id="mc-armed">—</span></div>
+  </div>
+
+  <div class="mc-actions">
+    <button type="button" id="mc-start" class="mc-btn go" {% if not can_control %}disabled{% endif %}>
+      Zaženi kalibracijo
+    </button>
+    <button type="button" id="mc-cancel" class="mc-btn stop" disabled>
+      Prekini
+    </button>
+  </div>
+
+  <div id="mc-msg" class="mc-msg" aria-live="polite"></div>
+  <div id="mc-statustext" class="mc-statustext"></div>
+
+  <section class="mc-thresh" id="mc-thresh">
+    <h2>PreArm prag</h2>
+    <p class="mc-thresh-hint">
+      
+        ARMING_MAGTHRESH [mG]: največja dovoljena razlika magnetnega polja
+        glede na model Zemlje (xy). Privzeto 100 — napaka »xy diff:102&gt;100«
+        pomeni, da si samo malo čez. 0 izklopi preverjanje (samo bench /
+        po tehtnem razmisleku).
+      
+    </p>
+    <label class="mc-thresh-label">
+      ARMING_MAGTHRESH
+      <input type="number" id="mc-magthresh" min="0" max="500" step="1"
+             value="100" {% if not can_control %}disabled{% endif %}>
+    </label>
+    <button type="button" id="mc-magthresh-save" class="mc-btn go"
+            {% if not can_control %}disabled{% endif %}>
+      Shrani na krmilnik
+    </button>
+    <div id="mc-magthresh-msg" class="mc-msg" aria-live="polite"></div>
+  </section>
+</div>
+
+<script>
+  window.PLANNER_BOOTSTRAP = {
+    mode: "magcal",
+    csrfToken: "{{ csrf_token }}",
+    autoStart: {{ auto_start|yesno:"true,false" }}
+  };
+</script>
+<script defer src="{% static 'js/planner.js' %}"></script>
+{% endblock %}

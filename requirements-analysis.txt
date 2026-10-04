@@ -1,0 +1,5 @@
+# Poletna analiza (mapa analysis/). Ni potrebno na dronu.
+#   pip install -r requirements-analysis.txt
+numpy>=1.26
+matplotlib>=3.8
+pyproj>=3.6

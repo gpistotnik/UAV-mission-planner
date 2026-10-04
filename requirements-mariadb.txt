@@ -1,0 +1,4 @@
+# MariaDB / MySQL gonilnik. Uporabi skupaj z DATABASE_URL=mysql://...
+# Potrebuje sistemske pakete: libmariadb-dev (Debian) ali MySQL Connector/C.
+#   pip install -r requirements.txt -r requirements-mariadb.txt
+mysqlclient>=2.2
