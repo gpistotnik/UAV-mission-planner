@@ -1,14 +1,15 @@
 {% extends "base.html" %}
+{% load i18n_simple %}
 
 
-{% block title %}Misije{% endblock %}
+{% block title %}{% t "mlist.title" %}{% endblock %}
 
 {% block content %}
   <div style="display:flex;justify-content:space-between;align-items:center;">
-    <h2>Misije</h2>
+    <h2>{% t "mlist.heading" %}</h2>
     <a href="{% url 'missions:planner_new' %}"
        style="background:#1f6feb;color:#fff;padding:8px 14px;border-radius:4px;text-decoration:none;">
-      + Nova misija
+      {% t "mlist.new_mission" %}
     </a>
   </div>
 
@@ -16,12 +17,12 @@
     <table style="border-collapse:collapse;width:100%;margin-top:12px;">
       <thead>
         <tr style="text-align:left;border-bottom:1px solid #ddd;">
-          <th>Ime</th>
-          <th>Drone</th>
-          <th>Referenca višine</th>
-          <th>Priv. višina [m]</th>
-          <th>Priv. hitrost [m/s]</th>
-          <th>Zadnja sprememba</th>
+          <th>{% t "mlist.col_name" %}</th>
+          <th>{% t "mlist.col_drone" %}</th>
+          <th>{% t "mlist.col_altitude_ref" %}</th>
+          <th>{% t "mlist.col_default_altitude" %}</th>
+          <th>{% t "mlist.col_default_speed" %}</th>
+          <th>{% t "mlist.col_last_modified" %}</th>
           <th></th>
         </tr>
       </thead>
@@ -34,13 +35,13 @@
             <td>{{ m.default_altitude_m }}</td>
             <td>{{ m.default_speed_ms }}</td>
             <td>{{ m.updated_at|date:"Y-m-d H:i" }}</td>
-            <td><a href="{% url 'missions:planner_edit' m.pk %}">Uredi →</a></td>
+            <td><a href="{% url 'missions:planner_edit' m.pk %}">{% t "mlist.edit" %}</a></td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
   {% else %}
-    <p>Misij še ni.
-       (<a href="{% url 'missions:planner_new' %}">Ustvari prvo</a>)</p>
+    <p>{% t "mlist.empty" %}
+       (<a href="{% url 'missions:planner_new' %}">{% t "mlist.create_first" %}</a>)</p>
   {% endif %}
 {% endblock %}

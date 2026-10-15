@@ -1,10 +1,11 @@
 {% extends "base.html" %}
+{% load i18n_simple %}
 
 
 {% block title %}{{ mission.name }}{% endblock %}
 
 {% block content %}
-  <p><a href="{% url 'missions:list' %}">← Vse misije</a></p>
+  <p><a href="{% url 'missions:list' %}">{% t "mdet.back_all" %}</a></p>
 
   <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
     <div>
@@ -14,15 +15,15 @@
     <div style="display:flex;gap:8px;">
       <a href="{% url 'missions:planner_edit' mission.pk %}"
          style="background:#f5f5f5;border:1px solid #ccc;padding:8px 12px;border-radius:4px;text-decoration:none;color:#333;">
-        ✏ Uredi
+        {% t "mdet.edit" %}
       </a>
       <a href="/api/missions/{{ mission.pk }}/items/?format=text" target="_blank"
          style="background:#f5f5f5;border:1px solid #ccc;padding:8px 12px;border-radius:4px;text-decoration:none;color:#333;">
-        ⤓ Izpis MAVLink ukazov
+        {% t "mdet.export_mavlink" %}
       </a>
       <a href="{% url 'core:dashboard' %}"
          style="background:#1f6feb;color:#fff;padding:8px 12px;border-radius:4px;text-decoration:none;">
-        ➤ Poslji na drona (nadzor)
+        {% t "mdet.send_to_drone" %}
       </a>
     </div>
   </div>
@@ -33,28 +34,28 @@
     </ul>
   {% endif %}
 
-  <h3>Parametri</h3>
+  <h3>{% t "mdet.h_parameters" %}</h3>
   <ul>
-    <li>Drone: {{ mission.drone.display_name }}</li>
-    <li>Vzletišče:
+    <li>{% t "mdet.p_drone" %}: {{ mission.drone.display_name }}</li>
+    <li>{% t "mdet.p_launch_point" %}:
         {% if mission.home_lat %}{{ mission.home_lat }}, {{ mission.home_lon }}
           (AMSL {{ mission.home_alt_amsl_m|default:"—" }} m)
         {% else %}—{% endif %}</li>
-    <li>Referenca višine: {{ mission.get_altitude_mode_display }}</li>
-    <li>Privzeta višina: {{ mission.default_altitude_m }} m</li>
-    <li>Privzeta hitrost: {{ mission.default_speed_ms }} m/s</li>
-    <li>Dejanje ob koncu: {{ mission.get_finish_action_display }}</li>
-    <li>Letalnih točk: {{ point_count }} ·
-        MAVLink ukazov: {{ item_count }}</li>
+    <li>{% t "mdet.p_altitude_ref" %}: {{ mission.get_altitude_mode_display }}</li>
+    <li>{% t "mdet.p_default_altitude" %}: {{ mission.default_altitude_m }} m</li>
+    <li>{% t "mdet.p_default_speed" %}: {{ mission.default_speed_ms }} m/s</li>
+    <li>{% t "mdet.p_finish_action" %}: {{ mission.get_finish_action_display }}</li>
+    <li>{% t "mdet.p_waypoints" %}: {{ point_count }} ·
+        {% t "mdet.p_mavlink_items" %}: {{ item_count }}</li>
   </ul>
 
-  <h3>Gradniki ({{ elements|length }})</h3>
+  <h3>{% t "mdet.h_elements" %} ({{ elements|length }})</h3>
   {% if elements %}
     <table style="border-collapse:collapse;" border="1" cellpadding="4">
       <thead>
-        <tr><th>#</th><th>tip</th><th>oznaka</th>
+        <tr><th>#</th><th>{% t "mdet.col_type" %}</th><th>{% t "mdet.col_label" %}</th>
             <th>lat</th><th>lon</th><th>h [m]</th><th>v [m/s]</th>
-            <th>dejanje</th><th>vzorec</th></tr>
+            <th>{% t "mdet.col_action" %}</th><th>{% t "mdet.col_pattern" %}</th></tr>
       </thead>
       <tbody>
         {% for e in elements %}
@@ -72,16 +73,16 @@
         {% endfor %}
       </tbody>
     </table>
-  {% else %}<p>Še ni nobenega gradnika.</p>{% endif %}
+  {% else %}<p>{% t "mdet.no_elements" %}</p>{% endif %}
 
-  <h3>Linearizirana pot ({{ point_count }})</h3>
+  <h3>{% t "mdet.h_linearized_path" %} ({{ point_count }})</h3>
   {% if points %}
     <details>
-      <summary>Pokaži vse točke</summary>
+      <summary>{% t "mdet.show_all_points" %}</summary>
       <table style="border-collapse:collapse;margin-top:8px;" border="1" cellpadding="3">
         <thead>
           <tr><th>#</th><th>lat</th><th>lon</th><th>h [m]</th>
-              <th>vir</th><th>dejanje</th></tr>
+              <th>{% t "mdet.col_source" %}</th><th>{% t "mdet.col_action" %}</th></tr>
         </thead>
         <tbody>
           {% for p in points %}

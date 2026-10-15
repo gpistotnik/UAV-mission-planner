@@ -1,5 +1,6 @@
 /** Inicializacija Leaflet karte — lokalne ploščice; višji zoom on-demand. */
 import L from "leaflet";
+import { t } from "./i18n";
 import {
   LOCAL_OSM_URL,
   SLOVENIA_BOUNDS,
@@ -70,7 +71,7 @@ export function createMap(elId: string, centerLat: number, centerLon: number): L
     const tiles = await fetchTilesStatus();
     if (tiles.available) {
       if (tiles.partial) {
-        showTilesHint(map, "Prenos lokalne karte še poteka…");
+        showTilesHint(map, t("misc.tiles_download_in_progress"));
       }
       return;
     }
@@ -80,8 +81,8 @@ export function createMap(elId: string, centerLat: number, centerLon: number): L
       : DEFAULT_NATIVE_MAX_Z;
     localOsm.redraw();
     const hint = tiles.poisoned
-      ? "Lokalne ploščice neveljavne — poteka ponovni prenos"
-      : "Ni lokalne karte — počakaj na konec prenosa na RPi";
+      ? t("misc.tiles_poisoned")
+      : t("misc.tiles_missing");
     showTilesHint(map, hint);
   })();
 

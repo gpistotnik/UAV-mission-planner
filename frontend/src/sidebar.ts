@@ -2,6 +2,7 @@
 import type { MissionElement, MissionPayload, WaypointElement, MapElement, DronePayload } from "./types";
 import { PlannerState } from "./state";
 import { getLiveGps } from "./telemetry";
+import { t } from "./i18n";
 
 export function renderSidebar(state: PlannerState, drones: DronePayload[]): void {
   renderToolbar(state);
@@ -39,23 +40,23 @@ function renderMissionHeader(state: PlannerState, drones: DronePayload[]): void 
   if (wrap.dataset.rendered === "1") return;
   wrap.dataset.rendered = "1";
   wrap.innerHTML = `
-    <label>Ime
+    <label>${t("side.name")}
       <input type="text" id="f-name" value="${escapeAttr(m.name)}" maxlength="120">
     </label>
-    <label>Drone
+    <label>${t("side.drone")}
       <select id="f-drone">${drones.map(d =>
         `<option value="${d.id}" ${d.id===m.drone_id?"selected":""}>${escapeHtml(d.display_name)}</option>`
       ).join("")}</select>
     </label>
     <div class="row">
-      <label>Visina [m]<input type="number" id="f-alt" value="${m.default_altitude_m}" min="1" max="500"></label>
-      <label>Hitrost [m/s]<input type="number" id="f-spd" value="${m.default_speed_ms}" step="0.5" min="1" max="20"></label>
+      <label>${t("side.altitude_m")}<input type="number" id="f-alt" value="${m.default_altitude_m}" min="1" max="500"></label>
+      <label>${t("side.speed_ms")}<input type="number" id="f-spd" value="${m.default_speed_ms}" step="0.5" min="1" max="20"></label>
     </div>
-    <label>Konec
+    <label>${t("side.finish")}
       <select id="f-finish">
-        <option value="HOVER" ${m.finish_action==="HOVER"?"selected":""}>Lebdenje</option>
-        <option value="RTH" ${m.finish_action==="RTH"?"selected":""}>Vrnitev domov</option>
-        <option value="LAND" ${m.finish_action==="LAND"?"selected":""}>Pristanek</option>
+        <option value="HOVER" ${m.finish_action==="HOVER"?"selected":""}>${t("side.finish_hover")}</option>
+        <option value="RTH" ${m.finish_action==="RTH"?"selected":""}>${t("side.finish_rth")}</option>
+        <option value="LAND" ${m.finish_action==="LAND"?"selected":""}>${t("side.finish_land")}</option>
       </select>
     </label>
   `;
@@ -80,22 +81,24 @@ function renderElementList(state: PlannerState): void {
   _listSignature = sig;
 
   if (state.mission.elements.length === 0) {
-    wrap.innerHTML = `<p class="hint">Brez gradnikov. Klikni "+ Waypoint" ali "+ Map" zgoraj.</p>`;
+    wrap.innerHTML = `<p class="hint">${t("side.no_elements")}</p>`;
     return;
   }
   wrap.innerHTML = state.mission.elements.map(e => {
     const sel = e.id === state.selectedId ? "selected" : "";
     const cls = e.element_type === "WP" ? "wp" : "map";
-    const label = e.name || (e.element_type === "WP" ? `Waypoint #${e.order}` : `Map #${e.order}`);
+    const label = e.name || (e.element_type === "WP"
+      ? t("side.wp_label", { order: e.order })
+      : t("side.map_label", { order: e.order }));
     return `
       <div class="element-row ${cls} ${sel}" data-id="${e.id}">
         <span class="badge">${e.element_type}</span>
         <span class="ord">#${e.order}</span>
         <span class="lbl">${escapeHtml(label)}</span>
         <span class="actions">
-          <button data-act="up" title="Gor">&uarr;</button>
-          <button data-act="dn" title="Dol">&darr;</button>
-          <button data-act="del" title="Brisi">&times;</button>
+          <button data-act="up" title="${t("side.move_up")}">&uarr;</button>
+          <button data-act="dn" title="${t("side.move_down")}">&darr;</button>
+          <button data-act="del" title="${t("side.delete")}">&times;</button>
         </span>
       </div>`;
   }).join("");
@@ -139,7 +142,7 @@ function detailGeomSig(e: MissionElement | undefined): string {
 function requireLiveGps(): { lat: number; lon: number } | null {
   const gps = getLiveGps();
   if (!gps) {
-    alert("GPS drona ni na voljo. Povezi Pixhawk in pocakaj na fix.");
+    alert(t("side.gps_unavailable"));
     return null;
   }
   return gps;
@@ -162,7 +165,7 @@ function renderDetail(state: PlannerState): void {
   }
 
   if (!e) {
-    wrap.innerHTML = `<p class="hint">Klikni gradnik v seznamu za nastavitve.</p>`;
+    wrap.innerHTML = `<p class="hint">${t("side.select_hint")}</p>`;
   } else {
     wrap.innerHTML = e.element_type === "WP" ? renderWPDetail(e) : renderMapDetail(e);
     bindDetailInputs(state, e);
@@ -174,44 +177,44 @@ function renderDetail(state: PlannerState): void {
 
 function renderWPDetail(e: WaypointElement): string {
   return `
-    <label>Oznaka<input type="text" id="d-name" value="${escapeAttr(e.name)}" maxlength="64"></label>
+    <label>${t("side.wp_marker")}<input type="text" id="d-name" value="${escapeAttr(e.name)}" maxlength="64"></label>
     <div class="row">
-      <label>Visina [m]<input type="number" id="d-alt" value="${e.altitude_m}" min="1" max="500"></label>
-      <label>Hitrost [m/s]<input type="number" id="d-spd" value="${e.speed_ms ?? ""}" step="0.5" min="1" max="20" placeholder="privzeta"></label>
+      <label>${t("side.altitude_m")}<input type="number" id="d-alt" value="${e.altitude_m}" min="1" max="500"></label>
+      <label>${t("side.speed_ms")}<input type="number" id="d-spd" value="${e.speed_ms ?? ""}" step="0.5" min="1" max="20" placeholder="${t("side.default_ph")}"></label>
     </div>
     <div class="coords-row">
       <p class="coords" id="d-coords">${e.lat.toFixed(6)}, ${e.lon.toFixed(6)}</p>
-      <button type="button" id="d-gps" class="btn-gps" title="Nastavi na trenutni GPS drona">Nastavi GPS</button>
+      <button type="button" id="d-gps" class="btn-gps" title="${t("side.set_gps_title")}">${t("side.set_gps")}</button>
     </div>
-    <label>Pot do tocke
+    <label>${t("side.path_to_point")}
       <select id="d-path">
-        <option value="STRAIGHT" ${e.path_style==="STRAIGHT"?"selected":""}>Ravno (ustavi)</option>
-        <option value="CURVED"   ${e.path_style==="CURVED"?"selected":""}>Krivo (zaobide)</option>
+        <option value="STRAIGHT" ${e.path_style==="STRAIGHT"?"selected":""}>${t("side.path_straight")}</option>
+        <option value="CURVED"   ${e.path_style==="CURVED"?"selected":""}>${t("side.path_curved")}</option>
       </select>
     </label>
-    <label>Dejanje v tocki
+    <label>${t("side.action_at_point")}
       <select id="d-act">
-        <option value="NONE"          ${e.action_type==="NONE"?"selected":""}>Brez</option>
-        <option value="PHOTO"         ${e.action_type==="PHOTO"?"selected":""}>Foto</option>
-        <option value="VIDEO_START"   ${e.action_type==="VIDEO_START"?"selected":""}>Zacni snemanje</option>
-        <option value="VIDEO_STOP"    ${e.action_type==="VIDEO_STOP"?"selected":""}>Ustavi snemanje</option>
-        <option value="CAPTURE_BURST" ${e.action_type==="CAPTURE_BURST"?"selected":""}>Burst</option>
+        <option value="NONE"          ${e.action_type==="NONE"?"selected":""}>${t("side.action_none")}</option>
+        <option value="PHOTO"         ${e.action_type==="PHOTO"?"selected":""}>${t("side.action_photo")}</option>
+        <option value="VIDEO_START"   ${e.action_type==="VIDEO_START"?"selected":""}>${t("side.action_video_start")}</option>
+        <option value="VIDEO_STOP"    ${e.action_type==="VIDEO_STOP"?"selected":""}>${t("side.action_video_stop")}</option>
+        <option value="CAPTURE_BURST" ${e.action_type==="CAPTURE_BURST"?"selected":""}>${t("side.action_burst")}</option>
       </select>
     </label>
     <div class="row">
-      <label>Smer
+      <label>${t("side.heading")}
         <select id="d-hm">
-          <option value="AUTO"    ${e.heading_mode==="AUTO"?"selected":""}>Auto</option>
-          <option value="FIXED"   ${e.heading_mode==="FIXED"?"selected":""}>Fiksna</option>
-          <option value="POI"     ${e.heading_mode==="POI"?"selected":""}>POI</option>
-          <option value="NEXT_WP" ${e.heading_mode==="NEXT_WP"?"selected":""}>Naslednji</option>
+          <option value="AUTO"    ${e.heading_mode==="AUTO"?"selected":""}>${t("side.heading_auto")}</option>
+          <option value="FIXED"   ${e.heading_mode==="FIXED"?"selected":""}>${t("side.heading_fixed")}</option>
+          <option value="POI"     ${e.heading_mode==="POI"?"selected":""}>${t("side.heading_poi")}</option>
+          <option value="NEXT_WP" ${e.heading_mode==="NEXT_WP"?"selected":""}>${t("side.heading_next")}</option>
         </select>
       </label>
-      <label>Smer [&deg;]<input type="number" id="d-hd" value="${e.heading_deg ?? ""}" min="0" max="360" placeholder="auto"></label>
+      <label>${t("side.heading_deg")}<input type="number" id="d-hd" value="${e.heading_deg ?? ""}" min="0" max="360" placeholder="auto"></label>
     </div>
     <div class="row">
-      <label>Gimbal [&deg;]<input type="number" id="d-gp" value="${e.gimbal_pitch_deg}" min="-90" max="30"></label>
-      <label>Cas lebd. [s]<input type="number" id="d-ht" value="${e.hover_time_s}" step="0.1" min="0"></label>
+      <label>${t("side.gimbal_deg")}<input type="number" id="d-gp" value="${e.gimbal_pitch_deg}" min="-90" max="30"></label>
+      <label>${t("side.hover_time_s")}<input type="number" id="d-ht" value="${e.hover_time_s}" step="0.1" min="0"></label>
     </div>
   `;
 }
@@ -222,22 +225,22 @@ function renderMapDetail(e: MapElement): string {
   const vertexRows = verts.map(([lon, lat], i) => `
     <div class="vertex-row">
       <span class="coords">V${i + 1}: ${lat.toFixed(6)}, ${lon.toFixed(6)}</span>
-      <button type="button" class="btn-gps" data-gps-vertex="${i}" title="Nastavi vogal na trenutni GPS">Nastavi GPS</button>
+      <button type="button" class="btn-gps" data-gps-vertex="${i}" title="${t("side.set_vertex_gps_title")}">${t("side.set_gps")}</button>
     </div>`).join("");
   return `
-    <label>Oznaka<input type="text" id="d-name" value="${escapeAttr(e.name)}" maxlength="64"></label>
+    <label>${t("side.map_marker")}<input type="text" id="d-name" value="${escapeAttr(e.name)}" maxlength="64"></label>
     <div class="row">
-      <label>Visina [m]<input type="number" id="d-alt" value="${e.altitude_m}" min="1" max="500"></label>
-      <label>Smer prog [&deg;]<input type="number" id="d-trk" value="${e.track_angle_deg}" min="0" max="180"></label>
+      <label>${t("side.altitude_m")}<input type="number" id="d-alt" value="${e.altitude_m}" min="1" max="500"></label>
+      <label>${t("side.track_angle_deg")}<input type="number" id="d-trk" value="${e.track_angle_deg}" min="0" max="180"></label>
     </div>
-    <label>Vzorec
+    <label>${t("side.pattern")}
       <select id="d-pat">
-        <option value="GRID"       ${e.pattern==="GRID"?"selected":""}>Obicajen</option>
-        <option value="CROSSHATCH" ${e.pattern==="CROSSHATCH"?"selected":""}>Mreza</option>
+        <option value="GRID"       ${e.pattern==="GRID"?"selected":""}>${t("side.pattern_grid")}</option>
+        <option value="CROSSHATCH" ${e.pattern==="CROSSHATCH"?"selected":""}>${t("side.pattern_crosshatch")}</option>
       </select>
     </label>
-    <label>Prekrivanje [%]<input type="number" id="d-ov" value="${e.front_overlap_pct}" min="0" max="95" step="5"></label>
-    <p class="hint">Vogali poligona (${verts.length}) — GPS nastavi izbrani vogal:</p>
+    <label>${t("side.overlap_pct")}<input type="number" id="d-ov" value="${e.front_overlap_pct}" min="0" max="95" step="5"></label>
+    <p class="hint">${t("side.vertices_hint", { count: verts.length })}</p>
     <div class="vertex-list">${vertexRows}</div>
     <div id="grid-stats" class="stats"></div>
   `;
@@ -297,7 +300,7 @@ function renderSaveButton(state: PlannerState): void {
   const btn = el<HTMLButtonElement>("save-btn");
   if (!btn) return;
   btn.classList.toggle("dirty", state.dirty);
-  btn.textContent = state.dirty ? "Shrani (neshranjeno)" : "Shrani";
+  btn.textContent = state.dirty ? t("side.save_unsaved") : t("side.save");
 }
 
 export function showMapStats(s: {
@@ -306,13 +309,14 @@ export function showMapStats(s: {
 }): void {
   const el2 = document.getElementById("grid-stats");
   if (!el2) return;
-  el2.innerHTML = `
-    GSD: <b>${s.gsd_cm_per_px}</b> cm/px<br>
-    Razmik prog: <b>${s.line_spacing_m}</b> m<br>
-    Razdalja med posnetki: <b>${s.trigger_distance_m}</b> m<br>
-    Skupna razdalja: <b>${s.total_distance_m}</b> m<br>
-    Prog: <b>${s.num_lines}</b> | Ocena slik: <b>${s.estimated_images}</b>
-  `;
+  el2.innerHTML = t("side.map_stats", {
+    gsd: s.gsd_cm_per_px,
+    spacing: s.line_spacing_m,
+    trigger: s.trigger_distance_m,
+    total: s.total_distance_m,
+    lines: s.num_lines,
+    images: s.estimated_images,
+  });
 }
 
 function escapeHtml(s: string): string {

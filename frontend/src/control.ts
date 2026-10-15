@@ -10,6 +10,8 @@
  * fizicni napravi s propelerji smiselna.
  */
 
+import { t } from "./i18n";
+
 interface CmdResult {
   ok?: boolean;
   error?: string | null;
@@ -74,8 +76,8 @@ export function setupControl(csrf: string): void {
     if (res.auth_required) {
       resultEl!.className = "ctl-result err";
       resultEl!.innerHTML =
-        `✗ ${res.error || "Potrebna je prijava."} ` +
-        `<a href="${res.login_url || "/sl/prijava/"}">Prijava</a>`;
+        `✗ ${res.error || t("ctrl.login_required")} ` +
+        `<a href="${res.login_url || "/prijava/"}">${t("ctrl.login")}</a>`;
       return;
     }
     if (res.ok) {
@@ -84,9 +86,9 @@ export function setupControl(csrf: string): void {
     } else {
       resultEl!.className = "ctl-result err";
       const steps = (res.steps || [])
-        .map((s) => `${s.step}: ${s.ok ? "ok" : s.error || "napaka"}`)
+        .map((s) => `${s.step}: ${s.ok ? "ok" : s.error || t("ctrl.error")}`)
         .join(" · ");
-      resultEl!.textContent = `✗ ${res.error || "Neznana napaka"}${steps ? ` — ${steps}` : ""}`;
+      resultEl!.textContent = `✗ ${res.error || t("ctrl.unknown_error")}${steps ? ` — ${steps}` : ""}`;
     }
     if (stEl && res.statustexts && res.statustexts.length > 0) {
       stEl.textContent = res.statustexts.map((s) => s.text).join(" | ");
@@ -115,34 +117,30 @@ export function setupControl(csrf: string): void {
 
   modeSet?.addEventListener("click", () => {
     const mode = modeSel?.value;
-    if (!mode) { show({ ok: false, error: "Izberi letalni način." }, ""); return; }
-    void run(modeSet, "Preklapljam…", "/api/mavlink/mode/", { mode }, `Način ${mode}`);
+    if (!mode) { show({ ok: false, error: t("ctrl.select_mode") }, ""); return; }
+    void run(modeSet, t("ctrl.switching"), "/api/mavlink/mode/", { mode }, t("ctrl.mode_set", { mode }));
   });
 
   btnArm?.addEventListener("click", () => {
-    if (!window.confirm(
-      "ARM zavrti motorje. Je območje prosto in so propelerji preverjeni?")) return;
-    void run(btnArm, "Armiram…", "/api/mavlink/arm/",
-      { arm: true, confirm: true }, "Armirano");
+    if (!window.confirm(t("ctrl.arm_confirm"))) return;
+    void run(btnArm, t("ctrl.arming"), "/api/mavlink/arm/",
+      { arm: true, confirm: true }, t("ctrl.armed"));
   });
 
   btnDisarm?.addEventListener("click", () => {
-    void run(btnDisarm, "Dis-armiram…", "/api/mavlink/arm/",
-      { arm: false, confirm: true }, "Dis-armirano");
+    void run(btnDisarm, t("ctrl.disarming"), "/api/mavlink/arm/",
+      { arm: false, confirm: true }, t("ctrl.disarmed"));
   });
 
   btnStart?.addEventListener("click", () => {
-    if (!window.confirm(
-      "Zagon misije: ARM → AUTO → MISSION_START.\n" +
-      "Po potrebi najprej GUIDED (ArduCopter ne arma v AUTO).\n" +
-      "Dron bo vzletel. Nadaljujem?")) return;
-    void run(btnStart, "Zaganjam…", "/api/mavlink/start/",
-      { confirm: true }, "Misija zagnana");
+    if (!window.confirm(t("ctrl.start_confirm"))) return;
+    void run(btnStart, t("ctrl.starting"), "/api/mavlink/start/",
+      { confirm: true }, t("ctrl.mission_started"));
   });
 
   btnRtl?.addEventListener("click", () => {
-    if (!window.confirm("Preklapljam v RTL — dron se bo vrnil na vzletišče. Nadaljujem?")) return;
-    void run(btnRtl, "RTL…", "/api/mavlink/mode/", { mode: "RTL" }, "RTL aktiviran");
+    if (!window.confirm(t("ctrl.rtl_confirm"))) return;
+    void run(btnRtl, t("ctrl.rtl_busy"), "/api/mavlink/mode/", { mode: "RTL" }, t("ctrl.rtl_active"));
   });
 }
 
@@ -165,12 +163,12 @@ export function setupLogging(csrf: string): void {
       if (!storage.available) {
         statusEl!.className = "log-status error";
         statusEl!.textContent =
-          `⚠ zapisovanje ni na voljo — ${storage.error || "USB medij ni priklopljen"}`;
+          `⚠ ${t("ctrl.logging_unavailable")} — ${storage.error || t("ctrl.usb_not_connected")}`;
         if (btnStart) btnStart.disabled = true;
         if (btnStop) btnStop.disabled = true;
         if (listEl) {
           listEl.innerHTML =
-            "<div class=\"log-empty\">Priklopi USB ključek za telemetrijo in slike.</div>";
+            `<div class="log-empty">${t("ctrl.connect_usb")}</div>`;
         }
         return;
       }
@@ -178,12 +176,12 @@ export function setupLogging(csrf: string): void {
       if (active.active) {
         statusEl!.className = "log-status rec";
         statusEl!.textContent =
-          `● zapisujem — ${active.messages ?? 0} sporočil` +
+          `● ${t("ctrl.recording", { messages: active.messages ?? 0 })}` +
           (active.mission_name ? ` · ${active.mission_name}` : "") +
           ` (${active.reason ?? "?"})`;
       } else {
         statusEl!.className = "log-status";
-        statusEl!.textContent = "○ ni aktivnega zapisa";
+        statusEl!.textContent = `○ ${t("ctrl.no_active_log")}`;
       }
       if (btnStart) btnStart.disabled = !!active.active;
       if (btnStop) btnStop.disabled = !active.active;
@@ -191,19 +189,19 @@ export function setupLogging(csrf: string): void {
       const sessions: LogSession[] = (data.sessions || []).slice(0, 64);
       if (listEl) {
         listEl.innerHTML = sessions.length === 0
-          ? "<div class=\"log-empty\">Še ni zapisanih letov.</div>"
+          ? `<div class="log-empty">${t("ctrl.no_flights")}</div>`
           : sessions.map((s) => {
             const links = [
-              `<a href="/api/logs/${encodeURIComponent(s.name)}/telemetry.jsonl">telemetrija</a>`,
+              `<a href="/api/logs/${encodeURIComponent(s.name)}/telemetry.jsonl">${t("ctrl.link_telemetry")}</a>`,
               s.has_plan
-                ? `<a href="/api/logs/${encodeURIComponent(s.name)}/plan.json">načrt</a>` : "",
+                ? `<a href="/api/logs/${encodeURIComponent(s.name)}/plan.json">${t("ctrl.link_plan")}</a>` : "",
               s.has_captures
-                ? `<a href="/api/logs/${encodeURIComponent(s.name)}/captures.jsonl">zajem</a>` : "",
+                ? `<a href="/api/logs/${encodeURIComponent(s.name)}/captures.jsonl">${t("ctrl.link_captures")}</a>` : "",
             ].filter(Boolean).join(" · ");
             return `<div class="log-item${s.running ? " running" : ""}">
               <div class="log-item-name">${s.name}</div>
               <div class="log-item-meta">${fmtDuration(s.duration_s)} ·
-                ${s.messages ?? 0} sporočil · ${fmtBytes(s.size_b)}</div>
+                ${t("ctrl.messages_count", { messages: s.messages ?? 0 })} · ${fmtBytes(s.size_b)}</div>
               <div class="log-item-links">${links}</div>
             </div>`;
           }).join("");
@@ -218,7 +216,7 @@ export function setupLogging(csrf: string): void {
     if (!result.ok) {
       statusEl!.className = "log-status error";
       statusEl!.textContent =
-        `⚠ ${result.error || "Zapisa ni bilo mogoče zagnati."}`;
+        `⚠ ${result.error || t("ctrl.log_start_failed")}`;
       return;
     }
     await refresh();

@@ -1,7 +1,8 @@
 {% extends "base.html" %}
+{% load i18n_simple %}
 {% load static assets %}
 
-{% block title %}Nadzorna plošča{% endblock %}
+{% block title %}{% t "dash.title" %}{% endblock %}
 
 {% block extra_head %}
   <link rel="stylesheet" href="{% static 'css/leaflet.css' %}">
@@ -15,11 +16,11 @@
   <!-- Levo zgoraj: video -->
   <div class="dash-video">
     <div class="dash-video-frame">
-      <img id="cam-stream" alt="Video stream" />
-      <div id="cam-status" class="cam-status">Povezujem se s kamero...</div>
+      <img id="cam-stream" alt="{% t "dash.video_stream_alt" %}" />
+      <div id="cam-status" class="cam-status">{% t "dash.cam_connecting" %}</div>
       <div id="cam-flash" class="cam-flash" aria-hidden="true"></div>
       <button type="button" id="cam-shutter" class="cam-shutter"
-              title="Naredi sliko in shrani"
+              title="{% t "dash.cam_shutter_title" %}"
               {% if not can_control %}disabled{% endif %}>
         <span class="cam-shutter-ring"></span>
       </button>
@@ -37,11 +38,11 @@
 
     <!-- 1. Povezava s Pixhawkom -->
     <section class="dash-section">
-      <h3>Povezava</h3>
+      <h3>{% t "dash.conn_heading" %}</h3>
       <div id="telemetry-panel" class="tm-panel inline">
         <div class="tm-row">
           <select id="tm-port" class="tm-port"></select>
-          <button type="button" id="tm-refresh" title="Osvezi seznam naprav">⟳</button>
+          <button type="button" id="tm-refresh" title="{% t "dash.tm_refresh_title" %}">⟳</button>
         </div>
         <div class="tm-row">
           <select id="tm-baud" class="tm-baud">
@@ -51,17 +52,17 @@
             <option value="460800">460800</option>
             <option value="921600">921600</option>
           </select>
-          <button type="button" id="tm-connect"  class="tm-btn ok">Poveži</button>
-          <button type="button" id="tm-disconnect" class="tm-btn err" disabled>Prekini</button>
+          <button type="button" id="tm-connect"  class="tm-btn ok">{% t "dash.tm_connect" %}</button>
+          <button type="button" id="tm-disconnect" class="tm-btn err" disabled>{% t "dash.tm_disconnect" %}</button>
         </div>
-        <div id="tm-status" class="tm-status off">● ni povezave</div>
+        <div id="tm-status" class="tm-status off">● {% t "dash.tm_no_connection" %}</div>
         <div id="tm-error" class="tm-error" style="display:none;"></div>
       </div>
     </section>
 
     <!-- 2. HUD -->
     <section class="dash-section">
-      <h3>Telemetrija</h3>
+      <h3>{% t "dash.telemetry_heading" %}</h3>
       <div id="hud" class="hud inline" style="display:none;">
         <div class="hud-row top">
           <span id="hud-mode" class="mode">—</span>
@@ -84,14 +85,14 @@
           <div><label>MAG cal</label><span id="hud-mag-cal">—</span></div>
         </div>
       </div>
-      <div id="hud-empty" class="hud-empty">Brez podatkov</div>
+      <div id="hud-empty" class="hud-empty">{% t "dash.hud_no_data" %}</div>
     </section>
 
     <!-- 3. Misija -->
     <section class="dash-section">
-      <h3>Misija</h3>
+      <h3>{% t "dash.mission_heading" %}</h3>
       <select id="mission-select" class="dash-select">
-        <option value="">— izberi misijo —</option>
+        <option value="">{% t "dash.mission_select_placeholder" %}</option>
         {% for m in missions %}
           <option value="{{ m.id }}">#{{ m.id }} · {{ m.name }} ({{ m.elements_count }})</option>
         {% endfor %}
@@ -99,30 +100,30 @@
       <div id="mission-info" class="mission-info"></div>
       <label class="dash-check">
         <input type="checkbox" id="mission-camera" checked>
-        Vključi ukaze za kamero
+        {% t "dash.mission_include_camera" %}
       </label>
       <button type="button" id="send-mission" class="dash-btn primary" disabled>
-        Pošlji na drona
+        {% t "dash.mission_send" %}
       </button>
       <div id="mission-progress" class="mission-progress" style="display:none;">
         <div class="mp-bar"><div id="mp-fill" class="mp-fill"></div></div>
         <div id="mp-text" class="mp-text">—</div>
       </div>
-      <div class="hint">Najprej se poveži s Pixhawkom, nato izberi misijo in pošlji.</div>
+      <div class="hint">{% t "dash.mission_hint" %}</div>
     </section>
 
     <!-- 4. Kontrola letalnika -->
     <section class="dash-section">
-      <h3>Kontrola</h3>
+      <h3>{% t "dash.control_heading" %}</h3>
       {% if not can_control %}
         <div class="ctl-locked">
-          Za upravljanje letalnika je potrebna prijava.
-          <a href="{% url 'login' %}?next={{ request.path }}">Prijava</a>
+          {% t "dash.control_login_required" %}
+          <a href="{% url 'login' %}?next={{ request.path }}">{% t "dash.control_login_link" %}</a>
         </div>
       {% endif %}
       <div class="ctl-grid">
         <select id="ctl-mode" class="dash-select">
-          <option value="">— letalni način —</option>
+          <option value="">{% t "dash.control_mode_placeholder" %}</option>
           <option value="STABILIZE">STABILIZE</option>
           <option value="ALT_HOLD">ALT_HOLD</option>
           <option value="LOITER">LOITER</option>
@@ -131,63 +132,63 @@
           <option value="RTL">RTL</option>
           <option value="LAND">LAND</option>
         </select>
-        <button type="button" id="ctl-mode-set" class="dash-btn">Nastavi</button>
+        <button type="button" id="ctl-mode-set" class="dash-btn">{% t "dash.control_mode_set" %}</button>
 
         <button type="button" id="ctl-arm" class="dash-btn warn">ARM</button>
         <button type="button" id="ctl-disarm" class="dash-btn">DISARM</button>
 
         <button type="button" id="ctl-start" class="dash-btn danger ctl-wide">
-          ▶ Zaženi misijo (ARM → AUTO → START)
+          ▶ {% t "dash.control_start_mission" %}
         </button>
         <button type="button" id="ctl-rtl" class="dash-btn ctl-wide">
-          ⤺ Vrni domov (RTL)
+          ⤺ {% t "dash.control_rtl" %}
         </button>
         <a href="{% url 'mag_cal' %}?start=1" class="dash-btn ctl-wide" id="ctl-mag-cal">
-          Kalibriraj kompas
+          {% t "dash.control_calibrate_compass" %}
         </a>
       </div>
       <div id="ctl-result" class="ctl-result"></div>
       <div id="ctl-statustext" class="ctl-statustext"></div>
       <div class="hint">
-        Propelerji! Pred armanjem preveri, da je območje prosto.
-        <a href="{% url 'mag_cal' %}">Kalibracija kompasa →</a>
+        {% t "dash.control_hint" %}
+        <a href="{% url 'mag_cal' %}">{% t "dash.control_compass_cal_link" %}</a>
         ·
-        <a href="{% url 'test_flight' %}">Samodejni testni polet →</a>
+        <a href="{% url 'test_flight' %}">{% t "dash.control_test_flight_link" %}</a>
       </div>
     </section>
 
     <!-- 5. Zapis telemetrije -->
     <section class="dash-section">
-      <h3>Zapis leta</h3>
+      <h3>{% t "dash.log_heading" %}</h3>
       <div id="log-status" class="log-status">—</div>
       <div class="ctl-grid">
-        <button type="button" id="log-start" class="dash-btn">● Začni zapis</button>
-        <button type="button" id="log-stop" class="dash-btn">■ Zaključi</button>
+        <button type="button" id="log-start" class="dash-btn">● {% t "dash.log_start" %}</button>
+        <button type="button" id="log-stop" class="dash-btn">■ {% t "dash.log_stop" %}</button>
       </div>
       <div id="log-list" class="log-list"></div>
       <div class="hint">
-        Zapis se samodejno začne ob armanju in zaključi ob dis-armanju.
+        {% t "dash.log_hint" %}
       </div>
     </section>
 
     <!-- 7. Kamera URL -->
     <section class="dash-section">
-      <h3>Kamera</h3>
+      <h3>{% t "dash.camera_heading" %}</h3>
       <input type="text" id="cam-url" class="dash-input" />
-      <button type="button" id="cam-reload" class="dash-btn">Osveži stream</button>
+      <button type="button" id="cam-reload" class="dash-btn">{% t "dash.camera_reload" %}</button>
       <div class="hint">
-        Gumb na videu shrani trenutni okvir.
+        {% t "dash.camera_hint" %}
         {% if can_control %}
-          <a href="{% url 'gallery' %}">Odpri galerijo →</a>
+          <a href="{% url 'gallery' %}">{% t "dash.camera_gallery_link" %}</a>
         {% else %}
-          Za zajem je potrebna prijava.
+          {% t "dash.camera_login_required" %}
         {% endif %}
       </div>
     </section>
 
     <!-- 6. Sistem (RPi diagnostika) -->
     <section class="dash-section">
-      <h3>Sistem <span id="sys-host" class="sys-host"></span></h3>
+      <h3>{% t "dash.system_heading" %} <span id="sys-host" class="sys-host"></span></h3>
       <div id="sys-warning" class="sys-warning" style="display:none;"></div>
       <div id="sys-grid" class="sys-grid">
         <div><label>CPU</label><span id="sys-cpu">—</span></div>
@@ -200,7 +201,7 @@
         <div class="sys-wide"><label>Throttled</label><span id="sys-throttled">—</span></div>
       </div>
       <div class="hint">
-        Pred izklopom napajanja uporabi gumb Ugasni v zgornjem meniju (sync + poweroff).
+        {% t "dash.system_hint" %}
       </div>
     </section>
 

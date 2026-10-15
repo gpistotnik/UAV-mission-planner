@@ -5,6 +5,8 @@
  * Test 1 in Test 2 imata ločene parametre (vključno z GPS pragovi).
  */
 
+import { t } from "./i18n";
+
 interface TfCheck {
   key: string;
   label: string;
@@ -167,8 +169,8 @@ function fmtAlt(v: number | null | undefined): string {
 }
 
 function profileLabel(p: string | undefined): string {
-  if (p === "hop") return "skok";
-  if (p === "hover") return "vzlet";
+  if (p === "hop") return t("auto.profile.hop");
+  if (p === "hover") return t("auto.profile.hover");
   return "—";
 }
 
@@ -213,21 +215,21 @@ export function setupAutoTest(csrf: string): void {
       if (saveMsg) {
         if (data.ok) {
           saveMsg.className = "tf-save-msg";
-          saveMsg.textContent = "✓ Shranjeno na napravi";
+          saveMsg.textContent = t("auto.save.ok");
           window.setTimeout(() => { if (saveMsg) saveMsg.textContent = ""; }, 2500);
         } else if (data.auth_required) {
           saveMsg.className = "tf-save-msg err";
           saveMsg.innerHTML =
-            `${data.error || "Prijava"} <a href="${data.login_url || "/sl/prijava/"}">Prijava</a>`;
+            `${data.error || t("auto.login")} <a href="${data.login_url || "/prijava/"}">${t("auto.login")}</a>`;
         } else {
           saveMsg.className = "tf-save-msg err";
-          saveMsg.textContent = `✗ ${data.error || "Ni mogoče shraniti"}`;
+          saveMsg.textContent = `✗ ${data.error || t("auto.save.fail")}`;
         }
       }
     } catch {
       if (saveMsg) {
         saveMsg.className = "tf-save-msg err";
-        saveMsg.textContent = "✗ Ni mogoče shraniti";
+        saveMsg.textContent = `✗ ${t("auto.save.fail")}`;
       }
     } finally {
       if (btnSave) btnSave.disabled = false;
@@ -237,13 +239,13 @@ export function setupAutoTest(csrf: string): void {
   function renderChecks(checks: TfCheck[]): void {
     if (!checksEl) return;
     if (checks.length === 0) {
-      checksEl.innerHTML = '<li class="tf-check pending">Ni podatkov.</li>';
+      checksEl.innerHTML = `<li class="tf-check pending">${t("auto.checks.empty")}</li>`;
       return;
     }
     checksEl.innerHTML = checks.map((c) => {
       const cls = c.ok ? "ok" : (c.required ? "err" : "warn");
       const mark = c.ok ? "✓" : "✗";
-      const opt = c.required ? "" : ' <em class="tf-opt">(neobvezno)</em>';
+      const opt = c.required ? "" : ` <em class="tf-opt">${t("auto.checks.optional")}</em>`;
       return `<li class="tf-check ${cls}"><span class="tf-mark">${mark}</span>
         <span class="tf-label">${c.label}${opt}</span>
         <span class="tf-value">${c.value}</span></li>`;
@@ -254,7 +256,7 @@ export function setupAutoTest(csrf: string): void {
     if (!eventsEl || events.length === lastEventCount) return;
     lastEventCount = events.length;
     if (events.length === 0) {
-      eventsEl.innerHTML = '<li class="tf-empty">Zaporedje še ni bilo zagnano.</li>';
+      eventsEl.innerHTML = `<li class="tf-empty">${t("auto.events.empty")}</li>`;
       return;
     }
     eventsEl.innerHTML = events.map((e) => {
@@ -284,7 +286,7 @@ export function setupAutoTest(csrf: string): void {
     if (altPeak) altPeak.textContent = fmtAlt(s.peak_altitude_m);
     if (modeEl) modeEl.textContent = s.mode || "—";
     if (armedEl) {
-      armedEl.textContent = s.armed ? "ARMED" : "DISARMED";
+      armedEl.textContent = s.armed ? t("auto.armed") : t("auto.disarmed");
       armedEl.className = s.armed ? "armed" : "disarmed";
     }
     if (elapsedEl) {
@@ -306,7 +308,7 @@ export function setupAutoTest(csrf: string): void {
             && s.phase !== "ABORTED" && s.phase !== "FAILED"));
       btnForce.disabled = busy || !canForce;
     }
-    const tip = s.checks_pass ? "" : "Predpoletne preverbe še niso izpolnjene.";
+    const tip = s.checks_pass ? "" : t("auto.tip.checks");
     btnHover!.title = tip;
     btnHop!.title = tip;
   }
@@ -354,27 +356,27 @@ export function setupAutoTest(csrf: string): void {
   async function startProfile(profile: "hover" | "hop"): Promise<void> {
     selectedProfile = profile;
     const p = paramsFor(profile);
-    const extra = p.require_gps ? "" :
-      "\n\nGPS NI ZAHTEVAN — brez GPS se dron ne bo držal pozicije!";
+    const extra = p.require_gps ? "" : t("auto.confirm.nogps");
 
     let msg: string;
     if (profile === "hop") {
       const hop = p as HopParams;
-      msg =
-        `Test 2 — skok:\n` +
-        `• vzlet na ${hop.altitude_m} m\n` +
-        `• ${hop.leg_m} m proti severu + slika\n` +
-        `• vrnitev + slika\n` +
-        `• pristanek\n\n` +
-        `Zahteva ≥${hop.min_satellites} satelitov, HDOP ≤${hop.max_hdop}.\n` +
-        `Je prostor proti severu prost in imaš RC v roki?${extra}`;
+      msg = t("auto.confirm.hop", {
+        alt: hop.altitude_m,
+        leg: hop.leg_m,
+        sats: hop.min_satellites,
+        hdop: hop.max_hdop,
+        extra,
+      });
     } else {
       const hover = p as HoverParams;
-      msg =
-        `Test 1 — vzlet:\n` +
-        `Dron bo vzletel na ${hover.altitude_m} m, lebdel ${hover.hover_s} s in pristal.\n` +
-        `Zahteva ≥${hover.min_satellites} satelitov, HDOP ≤${hover.max_hdop}.\n` +
-        `Je območje prosto in imaš RC oddajnik v roki?${extra}`;
+      msg = t("auto.confirm.hover", {
+        alt: hover.altitude_m,
+        hover: hover.hover_s,
+        sats: hover.min_satellites,
+        hdop: hover.max_hdop,
+        extra,
+      });
     }
     if (!window.confirm(msg)) return;
 
@@ -390,12 +392,12 @@ export function setupAutoTest(csrf: string): void {
       if (res.phase) render(res);
       if (res.auth_required && phaseMsg) {
         phaseMsg.innerHTML =
-          `${res.error} <a href="${res.login_url || "/prijava/"}">Prijava</a>`;
+          `${res.error} <a href="${res.login_url || "/prijava/"}">${t("auto.login")}</a>`;
       } else if (res.error && phaseMsg) {
         phaseMsg.textContent = `✗ ${res.error}`;
       }
     } catch {
-      if (phaseMsg) phaseMsg.textContent = "✗ Zagon ni uspel (omrežje).";
+      if (phaseMsg) phaseMsg.textContent = `✗ ${t("auto.err.start")}`;
     } finally {
       busy = false;
     }
@@ -423,12 +425,12 @@ export function setupAutoTest(csrf: string): void {
       if (res.phase) render(res);
       if (res.auth_required && phaseMsg) {
         phaseMsg.innerHTML =
-          `${res.error} <a href="${res.login_url || "/prijava/"}">Prijava</a>`;
+          `${res.error} <a href="${res.login_url || "/prijava/"}">${t("auto.login")}</a>`;
       } else if (res.error && phaseMsg) {
         phaseMsg.textContent = `✗ ${res.error}`;
       }
     } catch {
-      if (phaseMsg) phaseMsg.textContent = "✗ Prekinitev ni uspela (omrežje).";
+      if (phaseMsg) phaseMsg.textContent = `✗ ${t("auto.err.abort")}`;
     } finally {
       busy = false;
     }
@@ -436,10 +438,7 @@ export function setupAutoTest(csrf: string): void {
   });
 
   btnForce?.addEventListener("click", async () => {
-    if (!window.confirm(
-      "FORCE CANCEL: takoj prekine zaporedje, odklene vmesnik in pošlje "
-      + "LAND / force-disarm.\n\nUporabi, če se test zacikla. Nadaljuj?",
-    )) return;
+    if (!window.confirm(t("auto.confirm.force"))) return;
     busy = true;
     btnAbort.disabled = true;
     btnForce.disabled = true;
@@ -451,14 +450,14 @@ export function setupAutoTest(csrf: string): void {
       if (res.phase) render(res);
       if (res.auth_required && phaseMsg) {
         phaseMsg.innerHTML =
-          `${res.error} <a href="${res.login_url || "/prijava/"}">Prijava</a>`;
+          `${res.error} <a href="${res.login_url || "/prijava/"}">${t("auto.login")}</a>`;
       } else if (res.error && phaseMsg) {
         phaseMsg.textContent = `✗ ${res.error}`;
       } else if (phaseMsg) {
-        phaseMsg.textContent = res.message || "Vsili prekinitev.";
+        phaseMsg.textContent = res.message || t("auto.force.done");
       }
     } catch {
-      if (phaseMsg) phaseMsg.textContent = "✗ Force cancel ni uspel (omrežje).";
+      if (phaseMsg) phaseMsg.textContent = `✗ ${t("auto.err.force")}`;
     } finally {
       busy = false;
     }

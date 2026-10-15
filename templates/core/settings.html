@@ -1,7 +1,8 @@
 {% extends "base.html" %}
+{% load i18n_simple %}
 {% load static l10n %}
 
-{% block title %}Nastavitve{% endblock %}
+{% block title %}{% t "set.title" %}{% endblock %}
 
 {% block extra_head %}
   <link rel="stylesheet" href="{% static 'css/settings.css' %}">
@@ -9,74 +10,71 @@
 
 {% block content %}
 <div class="settings-page">
-  <h1>Nastavitve</h1>
+  <h1>{% t "set.heading" %}</h1>
   <p class="settings-intro">
-    Nastavitve so združene po sklopih. Spremembe krmilnika zahtevajo aktivno MAVLink povezavo.
+    {% t "set.intro" %}
   </p>
 
   {% if not can_control %}
     <div class="settings-warning">
-      Za spreminjanje nastavitev je potrebna prijava.
-      <a href="{% url 'login' %}?next={{ request.path }}">Prijava</a>
+      {% t "set.warning_login_required" %}
+      <a href="{% url 'login' %}?next={{ request.path }}">{% t "set.warning_login_link" %}</a>
     </div>
   {% endif %}
 
   <div class="settings-grid">
     <section class="settings-card">
-      <h2>Krmilnik letenja</h2>
-      <div id="settings-fc-status" class="settings-status">Preverjam povezavo…</div>
+      <h2>{% t "set.fc_heading" %}</h2>
+      <div id="settings-fc-status" class="settings-status">{% t "set.fc_checking" %}</div>
       <p class="settings-hint">
-          ARMING_MAGTHRESH [mG] določa največjo dovoljeno razliko magnetnega
-          polja. Vrednost 0 izklopi preverjanje in je primerna samo za bench.
-          RTL_ALT [m] je višina vrnitve domov po koncu misije (na krmilniku v cm).
+          {% t "set.fc_hint" %}
       </p>
       <div class="settings-field-row">
         <label for="settings-magthresh">ARMING_MAGTHRESH</label>
         <input id="settings-magthresh" type="number" min="0" max="500" step="1"
                value="100" {% if not can_control %}disabled{% endif %}>
-        <button id="settings-magthresh-read" type="button">Preberi</button>
+        <button id="settings-magthresh-read" type="button">{% t "set.btn_read" %}</button>
         <button id="settings-magthresh-save" type="button" class="primary"
-                {% if not can_control %}disabled{% endif %}>Shrani</button>
+                {% if not can_control %}disabled{% endif %}>{% t "set.btn_save" %}</button>
       </div>
       <div id="settings-magthresh-msg" class="settings-message" aria-live="polite"></div>
       <div class="settings-field-row">
         <label for="settings-rtl-alt">RTL_ALT [m]</label>
         <input id="settings-rtl-alt" type="number" min="0" max="80" step="0.5"
                value="3" {% if not can_control %}disabled{% endif %}>
-        <button id="settings-rtl-alt-read" type="button">Preberi</button>
+        <button id="settings-rtl-alt-read" type="button">{% t "set.btn_read" %}</button>
         <button id="settings-rtl-alt-save" type="button" class="primary"
-                {% if not can_control %}disabled{% endif %}>Shrani</button>
+                {% if not can_control %}disabled{% endif %}>{% t "set.btn_save" %}</button>
       </div>
       <div id="settings-rtl-alt-msg" class="settings-message" aria-live="polite"></div>
-      <a class="settings-link" href="{% url 'mag_cal' %}">Odpri kalibracijo kompasa →</a>
+      <a class="settings-link" href="{% url 'mag_cal' %}">{% t "set.fc_mag_cal_link" %}</a>
     </section>
 
     <section class="settings-card">
-      <h2>Testni polet</h2>
+      <h2>{% t "set.tf_heading" %}</h2>
       <p class="settings-hint">
-        Test 1 (vzlet) in Test 2 (skok) imata ločene parametre, vključno z
-        GPS pragovi (sateliti, HDOP).
+        {% t "set.tf_hint" %}
       </p>
       {% localize off %}
-      <h3 class="settings-subhead">Test 1 — vzlet</h3>
+      <h3 class="settings-subhead">{% t "set.tf1_subhead" %}</h3>
       <div class="settings-fields">
-        <label>Višina [m]
+        <label>{% t "set.field_altitude" %}
           <input id="settings-tf1-alt" type="number" min="1" max="10" step="0.5"
                  value="{{ test_defaults.altitude_m }}">
         </label>
-        <label>Lebdenje [s]
+        <label>{% t "set.field_hover" %}
           <input id="settings-tf1-hover" type="number" min="0" max="60" step="1"
                  value="{{ test_defaults.hover_s }}">
         </label>
-        <label>Odštevanje [s]
+        <label>{% t "set.field_countdown" %}
           <input id="settings-tf1-countdown" type="number" min="0" max="30" step="1"
                  value="{{ test_defaults.countdown_s }}">
         </label>
-        <label>Najmanj satelitov
+        <label>{% t "set.field_min_sats" %}
           <input id="settings-tf1-sats" type="number" min="0" max="30" step="1"
                  value="{{ test_defaults.min_satellites }}">
         </label>
-        <label>Največji HDOP
+        <label>{% t "set.field_max_hdop" %}
           <input id="settings-tf1-hdop" type="number" min="0.1" max="200" step="0.1"
                  value="{{ test_defaults.max_hdop }}">
         </label>
@@ -84,28 +82,28 @@
       <label class="settings-checkbox">
         <input id="settings-tf1-gps" type="checkbox"
                {% if test_defaults.require_gps %}checked{% endif %}>
-        Zahtevaj GPS (Test 1)
+        {% t "set.tf1_require_gps" %}
       </label>
 
-      <h3 class="settings-subhead">Test 2 — skok</h3>
+      <h3 class="settings-subhead">{% t "set.tf2_subhead" %}</h3>
       <div class="settings-fields">
-        <label>Višina [m]
+        <label>{% t "set.field_altitude" %}
           <input id="settings-tf2-alt" type="number" min="1" max="10" step="0.5"
                  value="{{ hop_defaults.altitude_m }}">
         </label>
-        <label>Odmik [m]
+        <label>{% t "set.field_leg" %}
           <input id="settings-tf2-leg" type="number" min="0.5" max="5" step="0.5"
                  value="{{ hop_defaults.leg_m }}">
         </label>
-        <label>Odštevanje [s]
+        <label>{% t "set.field_countdown" %}
           <input id="settings-tf2-countdown" type="number" min="0" max="30" step="1"
                  value="{{ hop_defaults.countdown_s }}">
         </label>
-        <label>Najmanj satelitov
+        <label>{% t "set.field_min_sats" %}
           <input id="settings-tf2-sats" type="number" min="0" max="30" step="1"
                  value="{{ hop_defaults.min_satellites }}">
         </label>
-        <label>Največji HDOP
+        <label>{% t "set.field_max_hdop" %}
           <input id="settings-tf2-hdop" type="number" min="0.1" max="200" step="0.1"
                  value="{{ hop_defaults.max_hdop }}">
         </label>
@@ -114,54 +112,52 @@
       <label class="settings-checkbox">
         <input id="settings-tf2-gps" type="checkbox"
                {% if hop_defaults.require_gps %}checked{% endif %}>
-        Zahtevaj GPS (Test 2)
+        {% t "set.tf2_require_gps" %}
       </label>
       <button id="settings-tf-save" type="button" class="primary"
-              {% if not can_control %}disabled{% endif %}>Shrani nastavitve testnega poleta</button>
+              {% if not can_control %}disabled{% endif %}>{% t "set.tf_save" %}</button>
       <div id="settings-tf-msg" class="settings-message" aria-live="polite"></div>
     </section>
 
     <section class="settings-card">
-      <h2>Povezava MAVLink</h2>
+      <h2>{% t "set.mav_heading" %}</h2>
       <dl class="settings-readonly">
-        <div><dt>Naprava</dt><dd>{{ serial_device }}</dd></div>
-        <div><dt>Hitrost</dt><dd>{{ serial_baud }} baud</dd></div>
-        <div><dt>Samodejna povezava</dt><dd>{{ autoconnect|yesno:"da,ne" }}</dd></div>
-        <div><dt>Zadnji poskus</dt><dd id="settings-ac-device">—</dd></div>
-        <div><dt>Poskusi</dt><dd id="settings-ac-attempts">—</dd></div>
-        <div><dt>Napaka auto</dt><dd id="settings-ac-error">—</dd></div>
+        <div><dt>{% t "set.mav_device" %}</dt><dd>{{ serial_device }}</dd></div>
+        <div><dt>{% t "set.mav_baud" %}</dt><dd>{{ serial_baud }} baud</dd></div>
+        <div><dt>{% t "set.mav_autoconnect" %}</dt><dd>{{ autoconnect|yesno:"da,ne" }}</dd></div>
+        <div><dt>{% t "set.mav_last_attempt" %}</dt><dd id="settings-ac-device">—</dd></div>
+        <div><dt>{% t "set.mav_attempts" %}</dt><dd id="settings-ac-attempts">—</dd></div>
+        <div><dt>{% t "set.mav_auto_error" %}</dt><dd id="settings-ac-error">—</dd></div>
       </dl>
       <p class="settings-hint">
-        Te zagonske vrednosti se spreminjajo v datoteki .env.
-        Trenutna faza: USB @ 115200; za UART TELEM2 nastavi
-        UAV_SERIAL_DEVICE=/dev/serial0 in UAV_SERIAL_BAUD=921600.
+        {% t "set.mav_hint" %}
       </p>
-      <a class="settings-link" href="{% url 'core:dashboard' %}">Odpri nadzorno ploščo →</a>
+      <a class="settings-link" href="{% url 'core:dashboard' %}">{% t "set.mav_dashboard_link" %}</a>
     </section>
 
     <section class="settings-card">
-      <h2>Zajem in shranjevanje</h2>
+      <h2>{% t "set.cap_heading" %}</h2>
       <dl class="settings-readonly">
-        <div><dt>Samodejni zapis</dt><dd>{{ log_trigger }}</dd></div>
-        <div><dt>Kamera</dt><dd>{{ camera_url }}</dd></div>
-        <div><dt>USB medij</dt><dd id="settings-storage">preverjam…</dd></div>
+        <div><dt>{% t "set.cap_auto_log" %}</dt><dd>{{ log_trigger }}</dd></div>
+        <div><dt>{% t "set.cap_camera" %}</dt><dd>{{ camera_url }}</dd></div>
+        <div><dt>{% t "set.cap_usb_media" %}</dt><dd id="settings-storage">{% t "set.cap_checking" %}</dd></div>
       </dl>
       <div class="settings-usb-picker">
-        <label for="settings-usb-device">Izberi USB napravo</label>
+        <label for="settings-usb-device">{% t "set.cap_select_usb" %}</label>
         <select id="settings-usb-device">
-          <option value="">Berem naprave…</option>
+          <option value="">{% t "set.cap_reading_devices" %}</option>
         </select>
         <div>
-          <button id="settings-usb-refresh" type="button">Osveži seznam</button>
+          <button id="settings-usb-refresh" type="button">{% t "set.cap_refresh" %}</button>
           <button id="settings-usb-select" type="button" class="primary"
                   {% if not can_control %}disabled{% endif %}>
-            Uporabi trajno
+            {% t "set.cap_use_persistent" %}
           </button>
         </div>
       </div>
       <div id="settings-usb-msg" class="settings-message" aria-live="polite"></div>
       <p class="settings-hint">
-        Izbira napravo mounta na /mnt/uav-data in jo shrani za naslednje zagone. Telemetrija in slike se zapisujejo samo na izbrani medij.
+        {% t "set.cap_hint" %}
       </p>
     </section>
   </div>

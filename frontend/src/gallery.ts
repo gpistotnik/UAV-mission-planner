@@ -1,6 +1,7 @@
 /**
  * Galerija: slike po misijah, skupen ZIP prenos, ostale po času.
  */
+import { t } from "./i18n";
 
 type GalImage = {
   session: string;
@@ -68,12 +69,12 @@ async function downloadZip(
     body: JSON.stringify(body),
   });
   if (!r.ok) {
-    let msg = `Napaka ${r.status}`;
+    let msg = t("sgal.error_status", { status: r.status });
     try {
       const j = await r.json();
       if (j.error) msg = j.error;
       if (j.auth_required && j.login_url) {
-        msg += ` — <a href="${j.login_url}">prijava</a>`;
+        msg += ` — <a href="${j.login_url}">${t("sgal.login")}</a>`;
       }
     } catch { /* ignore */ }
     throw new Error(msg);
@@ -106,7 +107,7 @@ function renderCard(img: GalImage): string {
   return `
     <article class="gal-card">
       <input type="checkbox" class="gal-pick" value="${escapeHtml(img.rel)}"
-             aria-label="Izberi ${escapeHtml(img.file)}">
+             aria-label="${escapeHtml(t("sgal.select_image", { file: img.file }))}">
       <img src="${escapeHtml(img.url)}" alt="${escapeHtml(img.file)}"
            loading="lazy" data-full="${escapeHtml(img.url)}">
       <div class="gal-meta">${escapeHtml(sessionLabel(img.session))}<br>
@@ -161,7 +162,7 @@ export function setupGallery(csrf: string, canControl: boolean): void {
 
   async function load() {
     if (statusEl) {
-      statusEl.textContent = "Nalagam…";
+      statusEl.textContent = t("sgal.loading");
       statusEl.className = "gallery-status";
     }
     try {
@@ -172,7 +173,7 @@ export function setupGallery(csrf: string, canControl: boolean): void {
       if (data.storage && data.storage.available === false) {
         if (statusEl) {
           statusEl.textContent = data.storage.error
-            || "Shramba ni na voljo.";
+            || t("sgal.storage_unavailable");
           statusEl.className = "gallery-status error";
         }
         missionsEl!.innerHTML = "";
@@ -184,8 +185,8 @@ export function setupGallery(csrf: string, canControl: boolean): void {
 
       if (statusEl) {
         statusEl.textContent = data.total_count
-          ? `${data.total_count} slik`
-          : "Ni shranjenih slik.";
+          ? t("sgal.image_count", { count: data.total_count })
+          : t("sgal.no_images");
       }
 
       missionsEl!.innerHTML = data.missions.map((g) => `
@@ -197,18 +198,18 @@ export function setupGallery(csrf: string, canControl: boolean): void {
             <div class="gal-section-actions">
               <label class="gal-check-all">
                 <input type="checkbox" class="gal-mission-all"
-                       data-mission="${g.mission_id}"> Izberi vse
+                       data-mission="${g.mission_id}"> ${t("sgal.select_all")}
               </label>
               <button type="button" class="gal-btn gal-dl-mission"
                       data-mission="${g.mission_id}"
-                      ${canControl ? "" : "disabled"}>Prenesi misijo</button>
+                      ${canControl ? "" : "disabled"}>${t("sgal.download_mission")}</button>
             </div>
           </div>
           <div class="gallery-grid">
             ${g.images.map(renderCard).join("")}
           </div>
         </section>
-      `).join("") || `<p class="gallery-empty">Ni slik, povezanih z misijami.</p>`;
+      `).join("") || `<p class="gallery-empty">${t("sgal.no_mission_images")}</p>`;
 
       if (data.other.length) {
         if (otherSection) otherSection.style.display = "";
@@ -256,7 +257,7 @@ export function setupGallery(csrf: string, canControl: boolean): void {
       syncSelectionUi();
     } catch (e) {
       if (statusEl) {
-        statusEl.textContent = "Napaka pri nalaganju: " + (e as Error).message;
+        statusEl.textContent = t("sgal.load_error", { msg: (e as Error).message });
         statusEl.className = "gallery-status error";
       }
     }

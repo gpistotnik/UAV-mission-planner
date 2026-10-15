@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load i18n_simple %}
 
 
 {% block title %}{{ title }}{% endblock %}
@@ -7,6 +8,6 @@
   <h2>{{ title }}</h2>
   <p>{{ subtitle }}</p>
   <p>
-    <a href="{% url 'missions:list' %}">Prikaži misije →</a>
+    <a href="{% url 'missions:list' %}">{% t "home.show_missions_link" %}</a>
   </p>
 {% endblock %}

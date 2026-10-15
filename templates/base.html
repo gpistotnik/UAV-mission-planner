@@ -1,9 +1,9 @@
-<!doctype html>
-<html lang="sl">
+{% load i18n_simple %}<!doctype html>
+<html lang="{{ LANG }}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{% block title %}Načrtovalnik misij UAV{% endblock %}</title>
+  <title>{% block title %}{% t "app.title" %}{% endblock %}</title>
   <style>
     :root { --fg:#1a1a1a; --bg:#fafafa; --accent:#1f6feb; }
     body { margin:0; font-family: system-ui, sans-serif; color:var(--fg); background:var(--bg); }
@@ -60,6 +60,17 @@
     }
     .hdr-poweroff:hover { filter: brightness(1.08); }
     .hdr-poweroff:disabled { background: #d1d5db; border-color: #9ca3af; cursor: not-allowed; }
+    .lang-switch {
+      display: inline-flex; border: 1px solid #e2e8f0; border-radius: 4px;
+      overflow: hidden; font-size: 0.78rem; font-weight: 600;
+    }
+    .lang-switch button {
+      border: 0; background: #fff; color: #64748b; cursor: pointer;
+      padding: 5px 9px; font: inherit; line-height: 1;
+    }
+    .lang-switch button + button { border-left: 1px solid #e2e8f0; }
+    .lang-switch button:hover { background: #f1f5f9; }
+    .lang-switch button.active { background: #1f6feb; color: #fff; cursor: default; }
     main { padding: 24px; max-width: 1400px; margin: 0 auto; }
   </style>
   {% block extra_head %}{% endblock %}
@@ -70,39 +81,45 @@
     <nav>
       {% url 'missions:list' as missions_url %}
       {% url 'core:dashboard' as dashboard_url %}
-      <div class="wifi-status" id="wifi-status" title="WiFi GPIO (GPIO19)">
-        <label>WiFi</label>
+      <div class="wifi-status" id="wifi-status" title="{% t 'hdr.wifi_title' %}">
+        <label>{% t "hdr.wifi" %}</label>
         <span id="wifi-mode">—</span>
       </div>
       <a href="{{ missions_url }}"
          class="{% if request.path|slice:'3:' == missions_url|slice:'3:' or '/misije' in request.path %}active{% endif %}">
-        Načrtovalnik
+        {% t "nav.planner" %}
       </a>
       <a href="{{ dashboard_url }}"
          class="{% if request.path == '/' or '/nadzor' in request.path %}active{% endif %}">
-        Nadzor
+        {% t "nav.control" %}
       </a>
       <a href="{% url 'gallery' %}"
          class="{% if '/galerija' in request.path %}active{% endif %}">
-        Galerija
+        {% t "nav.gallery" %}
       </a>
       <a href="{% url 'test_flight' %}"
          class="{% if '/test-polet' in request.path %}active{% endif %}">
-        Testni polet
+        {% t "nav.testflight" %}
       </a>
       <a href="{% url 'app_settings' %}"
          class="{% if '/nastavitve' in request.path %}active{% endif %}">
-        Nastavitve
+        {% t "nav.settings" %}
       </a>
     </nav>
     <div class="header-actions">
-      <div class="hdr-battery" id="hdr-battery" title="Stanje baterije (Pixhawk)">
-        <label>Bat</label>
+      <div class="lang-switch" role="group" aria-label="{% t 'lang.label' %}">
+        <button type="button" data-lang="sl"
+                class="{% if LANG == 'sl' %}active{% endif %}">SL</button>
+        <button type="button" data-lang="en"
+                class="{% if LANG == 'en' %}active{% endif %}">EN</button>
+      </div>
+      <div class="hdr-battery" id="hdr-battery" title="{% t 'hdr.battery_title' %}">
+        <label>{% t "hdr.bat" %}</label>
         <span id="hdr-battery-pct" class="bat-na">—</span>
       </div>
       <button type="button" id="sys-poweroff" class="hdr-poweroff"
-              title="Varno ugasni RPi (sync + poweroff)">
-        ⏻ Ugasni
+              title="{% t 'hdr.poweroff_title' %}">
+        ⏻ {% t "hdr.poweroff" %}
       </button>
     </div>
   </header>
@@ -112,15 +129,51 @@
   dogodek uav-network-status (pasica preklopa), zato ne sme zagnati drugega pollerja.
   {% endcomment %}
   <script>
+  {% t 'wifi.no_daemon' as t_wifi_nodaemon %}
+  {% t 'wifi.client' as t_wifi_client %}
+  {% t 'battery.no_data' as t_bat_nodata %}
+  {% t 'battery.label' as t_bat_label %}
+  {% t 'poweroff.confirm' as t_po_confirm %}
+  {% t 'poweroff.powering' as t_po_powering %}
+  {% t 'poweroff.auth_required' as t_po_auth %}
+  {% t 'poweroff.armed_confirm' as t_po_armed %}
+  {% t 'poweroff.shutting_down' as t_po_shutdown %}
+  {% t 'common.error' as t_error %}
+  window.__T__ = {
+    wifiNoDaemon: "{{ t_wifi_nodaemon|escapejs }}",
+    wifiClient: "{{ t_wifi_client|escapejs }}",
+    batteryNoData: "{{ t_bat_nodata|escapejs }}",
+    batteryLabel: "{{ t_bat_label|escapejs }}",
+    poweroffConfirm: "{{ t_po_confirm|escapejs }}",
+    poweroffPowering: "{{ t_po_powering|escapejs }}",
+    poweroffAuth: "{{ t_po_auth|escapejs }}",
+    poweroffArmed: "{{ t_po_armed|escapejs }}",
+    poweroffShutdown: "{{ t_po_shutdown|escapejs }}",
+    error: "{{ t_error|escapejs }}"
+  };
+
+  // Preklopnik jezika: nastavi piskotek in osvezi (streznik + frontend ga
+  // oba bereta, zato je prikaz po osvezitvi usklajen).
+  (function () {
+    document.querySelectorAll(".lang-switch button[data-lang]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var lang = b.getAttribute("data-lang");
+        if (b.classList.contains("active")) return;
+        document.cookie = "uav_lang=" + lang + "; path=/; max-age=31536000; samesite=lax";
+        location.reload();
+      });
+    });
+  })();
+
   (function () {
     var el = document.getElementById("wifi-mode");
     if (!el) return;
     window.__UAV_NET_POLL__ = true;
-    var SHORT = { CLIENT: "klient", AP: "AP" };
+    var SHORT = { CLIENT: window.__T__.wifiClient, AP: "AP" };
     function paint(data) {
       el.classList.remove("wifi-ap", "wifi-client", "wifi-offline", "wifi-pending");
       if (!data || !data.available) {
-        el.textContent = "ni demona";
+        el.textContent = window.__T__.wifiNoDaemon;
         el.classList.add("wifi-offline");
       } else {
         var short = SHORT[data.mode] || data.mode || "—";
@@ -158,7 +211,7 @@
       if (!connected || pct === null || pct === undefined || pct < 0) {
         el.textContent = "—";
         el.classList.add("bat-na");
-        if (box) box.title = "Baterija: ni podatka";
+        if (box) box.title = window.__T__.batteryNoData;
         return;
       }
       var p = Math.round(Number(pct));
@@ -166,7 +219,7 @@
       if (p < 20) el.classList.add("bat-low");
       else if (p < 40) el.classList.add("bat-warn");
       else el.classList.add("bat-ok");
-      var tip = "Baterija: " + p + "%";
+      var tip = window.__T__.batteryLabel + ": " + p + "%";
       if (voltage !== null && voltage !== undefined) {
         tip += " (" + Number(voltage).toFixed(1) + " V)";
       }
@@ -206,48 +259,42 @@
       }).then(function (r) { return r.json(); });
     }
     btn.addEventListener("click", function () {
-      if (!window.confirm(
-        "Ugasnem Raspberry Pi?\n\n" +
-        "Najprej se sinhronizira disk, nato se RPi ugasne. " +
-        "Šele potem izklopi napajanje.\n\nNadaljujem?"
-      )) return;
+      if (!window.confirm(window.__T__.poweroffConfirm)) return;
       var orig = btn.textContent;
       btn.disabled = true;
-      btn.textContent = "Ugašam…";
+      btn.textContent = window.__T__.poweroffPowering;
       post({ confirm: true }).then(function (data) {
         if (data.auth_required) {
-          alert(data.error || "Potrebna je prijava.");
+          alert(data.error || window.__T__.poweroffAuth);
           btn.disabled = false;
           btn.textContent = orig;
           return;
         }
         if (!data.ok && data.armed) {
-          if (!window.confirm(
-            "Pixhawk je ARMIRAN!\n\nUgasnem vseeno? (force)"
-          )) {
+          if (!window.confirm(window.__T__.poweroffArmed)) {
             btn.disabled = false;
             btn.textContent = orig;
             return;
           }
           return post({ confirm: true, force: true }).then(function (data2) {
             if (!data2.ok) {
-              alert(data2.error || "Napaka");
+              alert(data2.error || window.__T__.error);
               btn.disabled = false;
               btn.textContent = orig;
             } else {
-              btn.textContent = "Ugašanje…";
+              btn.textContent = window.__T__.poweroffShutdown;
             }
           });
         }
         if (!data.ok) {
-          alert(data.error || "Napaka");
+          alert(data.error || window.__T__.error);
           btn.disabled = false;
           btn.textContent = orig;
         } else {
-          btn.textContent = "Ugašanje…";
+          btn.textContent = window.__T__.poweroffShutdown;
         }
       }).catch(function (e) {
-        alert(e.message || "Napaka");
+        alert(e.message || window.__T__.error);
         btn.disabled = false;
         btn.textContent = orig;
       });

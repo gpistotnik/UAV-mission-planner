@@ -1,5 +1,7 @@
 /** Interakcije centralne strani nastavitev. */
 
+import { t } from "./i18n";
+
 interface ApiResult {
   ok?: boolean;
   error?: string;
@@ -86,7 +88,7 @@ function wireFcParam(
 
   async function read(): Promise<void> {
     if (readButton) readButton.disabled = true;
-    message(control.msgId, "Berem parameter…");
+    message(control.msgId, t("sset.param_reading"));
     try {
       const { data } = await jsonRequest(
         `/api/mavlink/param/?name=${encodeURIComponent(control.name)}`);
@@ -95,13 +97,13 @@ function wireFcParam(
         if (field) field.value = control.formatUi(ui);
         message(
           control.msgId,
-          `✓ Na krmilniku: ${control.formatUi(ui)} ${control.unitLabel}`,
+          t("sset.param_on_fc", { value: control.formatUi(ui), unit: control.unitLabel }),
           "ok",
         );
       } else {
         message(
           control.msgId,
-          `✗ ${data.error || "Branje ni uspelo"}`,
+          `✗ ${data.error || t("sset.read_failed")}`,
           "err",
         );
       }
@@ -119,7 +121,7 @@ function wireFcParam(
     const confirmText = control.confirmSave?.(ui);
     if (confirmText && !window.confirm(confirmText)) return;
     saveButton.disabled = true;
-    message(control.msgId, "Shranjujem…");
+    message(control.msgId, t("sset.saving"));
     try {
       const { data } = await jsonRequest("/api/mavlink/param/set/", {
         method: "POST",
@@ -135,13 +137,13 @@ function wireFcParam(
         if (field) field.value = control.formatUi(savedUi);
         message(
           control.msgId,
-          `✓ Shranjeno: ${control.formatUi(savedUi)} ${control.unitLabel}`,
+          t("sset.saved_value", { value: control.formatUi(savedUi), unit: control.unitLabel }),
           "ok",
         );
       } else {
         message(
           control.msgId,
-          `✗ ${data.error || "Zapis ni uspel"}`,
+          `✗ ${data.error || t("sset.write_failed")}`,
           "err",
         );
       }
@@ -184,7 +186,7 @@ export function setupSettings(csrf: string): void {
     formatUi: (ui) => String(Math.round(ui)),
     unitLabel: "mG",
     confirmSave: (ui) => (ui === 0
-      ? "ARMING_MAGTHRESH = 0 izklopi PreArm preverjanje. Nadaljujem?"
+      ? t("sset.magthresh_zero_confirm")
       : null),
   });
 
@@ -211,8 +213,8 @@ export function setupSettings(csrf: string): void {
       const connected = response.ok && !!data.connected;
       if (fcStatus) {
         fcStatus.textContent = connected
-          ? `✓ Povezano: ${data.port || "MAVLink"} · ${data.heartbeat?.mode || "—"}`
-          : `✗ ${data.error || "Ni povezave s krmilnikom"}`;
+          ? t("sset.connected", { port: data.port || "MAVLink", mode: data.heartbeat?.mode || "—" })
+          : `✗ ${data.error || t("sset.no_fc_connection")}`;
         fcStatus.className = `settings-status ${connected ? "ok" : "err"}`;
       }
       const ac = data.autoconnect || {};
@@ -221,8 +223,8 @@ export function setupSettings(csrf: string): void {
       const acErr = document.getElementById("settings-ac-error");
       if (acDev) {
         acDev.textContent = ac.last_device
-          ? `${ac.last_device}${ac.enabled === false ? " (izklopljeno)" : ""}`
-          : (ac.enabled ? "—" : "izklopljeno");
+          ? `${ac.last_device}${ac.enabled === false ? t("sset.disabled_suffix") : ""}`
+          : (ac.enabled ? "—" : t("sset.disabled"));
       }
       if (acAtt) acAtt.textContent = String(ac.attempts ?? "—");
       if (acErr) acErr.textContent = ac.last_error || "—";
@@ -230,7 +232,7 @@ export function setupSettings(csrf: string): void {
       return connected;
     } catch {
       if (fcStatus) {
-        fcStatus.textContent = "✗ Stanja povezave ni mogoče prebrati";
+        fcStatus.textContent = `✗ ${t("sset.connection_state_unreadable")}`;
         fcStatus.className = "settings-status err";
       }
       for (const p of fcParams) p.setConnected(false);
@@ -240,7 +242,7 @@ export function setupSettings(csrf: string): void {
 
   testSaveButton?.addEventListener("click", async () => {
     testSaveButton.disabled = true;
-    message("settings-tf-msg", "Shranjujem…");
+    message("settings-tf-msg", t("sset.saving"));
     const gps1 = input("settings-tf1-gps");
     const gps2 = input("settings-tf2-gps");
     try {
@@ -268,7 +270,7 @@ export function setupSettings(csrf: string): void {
       });
       message(
         "settings-tf-msg",
-        data.ok ? "✓ Nastavitve so shranjene." : `✗ ${data.error || "Shranjevanje ni uspelo"}`,
+        data.ok ? t("sset.settings_saved") : `✗ ${data.error || t("sset.save_failed")}`,
         data.ok ? "ok" : "err",
       );
     } catch (error) {
@@ -283,8 +285,8 @@ export function setupSettings(csrf: string): void {
     const storage = document.getElementById("settings-storage");
     if (storage) {
       storage.textContent = data.storage?.available
-        ? `na voljo · ${data.log_dir || ""}`
-        : data.storage?.error || "ni na voljo";
+        ? t("sset.storage_available", { dir: data.log_dir || "" })
+        : data.storage?.error || t("sset.storage_unavailable");
       storage.className = data.storage?.available ? "ok" : "err";
     }
   }
@@ -297,14 +299,14 @@ export function setupSettings(csrf: string): void {
       const devices = (data.devices || []) as UsbDevice[];
       usbSelect.innerHTML = "";
       if (devices.length === 0) {
-        usbSelect.add(new Option("Ni zaznanih USB particij", ""));
-        message("settings-usb-msg", data.error || "Priklopi USB ključek.", "err");
+        usbSelect.add(new Option(t("sset.no_usb_partitions"), ""));
+        message("settings-usb-msg", data.error || t("sset.connect_usb_stick"), "err");
         return;
       }
       for (const device of devices) {
         const name = device.label || device.model || device.path;
-        const filesystem = device.filesystem || "brez datotečnega sistema";
-        const selected = device.selected ? " · IZBRAN" : "";
+        const filesystem = device.filesystem || t("sset.no_filesystem");
+        const selected = device.selected ? t("sset.selected_suffix") : "";
         const option = new Option(
           `${name} · ${device.path} · ${filesystem} · ${formatSize(device.size_b)}${selected}`,
           device.path,
@@ -317,7 +319,7 @@ export function setupSettings(csrf: string): void {
       message("settings-usb-msg", "");
     } catch (error) {
       usbSelect.innerHTML = "";
-      usbSelect.add(new Option("Napaka pri branju naprav", ""));
+      usbSelect.add(new Option(t("sset.device_read_error"), ""));
       message("settings-usb-msg", `✗ ${(error as Error).message}`, "err");
     } finally {
       usbSelect.disabled = false;
@@ -332,15 +334,12 @@ export function setupSettings(csrf: string): void {
   usbUse?.addEventListener("click", async () => {
     const device = usbSelect?.value || "";
     if (!device) {
-      message("settings-usb-msg", "✗ Izberi uporabno USB particijo.", "err");
+      message("settings-usb-msg", `✗ ${t("sset.select_usable_usb")}`, "err");
       return;
     }
-    if (!window.confirm(
-      `Uporabim ${device} za telemetrijo in slike?\n` +
-      "Naprava bo odmountana z morebitne trenutne lokacije in trajno " +
-      "mountana na /mnt/uav-data.")) return;
+    if (!window.confirm(t("sset.use_device_confirm", { device }))) return;
     usbUse.disabled = true;
-    message("settings-usb-msg", "Nastavljam in mountam USB…");
+    message("settings-usb-msg", t("sset.configuring_mounting_usb"));
     try {
       const { response, data } = await jsonRequest("/api/storage/select/", {
         method: "POST",
@@ -350,14 +349,14 @@ export function setupSettings(csrf: string): void {
       if (response.ok && data.ok) {
         message(
           "settings-usb-msg",
-          `✓ Izbrano trajno: ${device} → ${data.mount_point}`,
+          t("sset.selected_permanently", { device, mount: data.mount_point }),
           "ok",
         );
         await Promise.all([loadUsbDevices(), refreshStorage()]);
       } else {
         message(
           "settings-usb-msg",
-          `✗ ${data.error || "Izbira USB-ja ni uspela"}`,
+          `✗ ${data.error || t("sset.usb_select_failed")}`,
           "err",
         );
       }
