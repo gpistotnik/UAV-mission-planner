@@ -108,7 +108,9 @@ def test_planner_ensures_default_f450_drone(client) -> None:
     r = client.get("/misije/nova/")
     assert r.status_code == 200
     drone = DroneProfile.objects.get()
-    assert drone.slug == "f450-pixhawk-rpi-imx477"
+    assert drone.slug == "f450-pixhawk-rpi-imx219"
+    assert drone.image_width_px == 3280
+    assert drone.image_height_px == 2464
     payload = json.loads(r.context["mission_json"])
     assert payload["drone_id"] == drone.pk
 
