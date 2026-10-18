@@ -82,7 +82,9 @@ def analyze(session: Path, make_plots: bool = True,
     planned = M.planned_points_from_plan(plan)
     mission_hdr = (plan.get("mission") or {})
     planned_alt = float(mission_hdr.get("default_altitude_m") or 0) or None
-    item_count = len(plan.get("items") or []) or None
+    raw_items = plan.get("items")
+    items = raw_items if isinstance(raw_items, list) else None
+    item_count = len(items) if items else None
 
     result: dict[str, Any] = {
         "session": session.name,
@@ -119,7 +121,8 @@ def analyze(session: Path, make_plots: bool = True,
         result["altitude"] = M.altitude_stats(track, planned_alt)
 
     result["telemetry"] = M.telemetry_rate_stats(rows)
-    result["mission_execution"] = M.mission_completion(rows, item_count)
+    result["mission_execution"] = M.mission_completion(
+        rows, item_count, items)
     result["capture"] = M.capture_accuracy(captures, planned)
 
     out_dir = session / "analysis"
@@ -130,7 +133,8 @@ def analyze(session: Path, make_plots: bool = True,
         render_markdown(result), encoding="utf-8")
 
     if make_plots and _PLOTS:
-        _plot_all(out_dir, track, planned, captures, planned_alt, result)
+        _plot_all(out_dir, track, airborne, rows, planned, captures,
+                  planned_alt, result)
         result["plots"] = "ustvarjeni"
     elif make_plots:
         result["plots"] = "preskoceni (matplotlib ni namescen)"
@@ -191,10 +195,13 @@ def render_markdown(r: dict[str, Any]) -> str:
         "## Izvedba misije",
         "",
         f"- Frekvenca pozicije: {tl.get('hz') or '—'} Hz",
-        f"- Dosezenih ukazov: {me.get('reached_count')} / "
-        f"{me.get('item_count') or '—'}"
+        f"- Dosezenih navigacijskih tock: "
+        f"{me.get('reached_nav_count', '—')} / "
+        f"{me.get('planned_nav_count') or '—'}"
         + (f" ({me.get('completion_pct')} %)"
-           if me.get("completion_pct") is not None else ""),
+           if me.get("completion_pct") is not None else "")
+        + f"; vseh MISSION_ITEM_REACHED: {me.get('reached_count')} / "
+        f"{me.get('item_count') or '—'} ukazov",
         f"- Posnetkov: {cp.get('captures', 0)} "
         f"(z datoteko: {cp.get('captured_files', 0)}, "
         f"brez pozicije: {cp.get('without_position', 0)})",
@@ -209,43 +216,146 @@ def render_markdown(r: dict[str, Any]) -> str:
 # ---------------------------------------------------------------------------
 # Grafi
 # ---------------------------------------------------------------------------
+def _saved_captures(
+    captures: Sequence[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    return [c for c in captures if c.get("captured") is True]
+
+
+def _nearest_xy(
+    plane: M.LocalPlane,
+    track: Sequence[M.TrackPoint],
+    t: float,
+) -> Optional[tuple[float, float]]:
+    if not track:
+        return None
+    point = min(track, key=lambda p: abs(p.t - t))
+    return plane.to_xy(point.lat, point.lon)
+
+
+_PLOT_TEXT = {
+    "sl": {
+        "planned": "nacrtovano",
+        "flown": "dejansko",
+        "images": "posnetki",
+        "reached": "MISSION_ITEM_REACHED",
+        "east": "vzhod [m]",
+        "north": "sever [m]",
+        "window": "Analizno okno misije",
+        "airborne": "Celoten let od aktivacije do deaktivacije",
+        "time": "cas od zacetka [s]",
+        "cross": "odstopanje [m]",
+        "cross_title": "Odstopanje od nacrtovane trajektorije",
+        "alt": "visina AGL [m]",
+        "alt_title": "Profil visine",
+        "planned_alt": "nacrtovano {alt:g} m",
+        "capture_x": "razdalja do najblizje nacrtovane tocke [m]",
+        "capture_y": "stevilo posnetkov",
+        "capture_title": "Tocnost zajema",
+    },
+    "en": {
+        "planned": "planned",
+        "flown": "flown",
+        "images": "images",
+        "reached": "item reached",
+        "east": "east [m]",
+        "north": "north [m]",
+        "window": "Mission analysis window",
+        "airborne": "Full flight, motors armed",
+        "time": "time from start [s]",
+        "cross": "cross-track error [m]",
+        "cross_title": "Cross-track error",
+        "alt": "altitude AGL [m]",
+        "alt_title": "Altitude profile",
+        "planned_alt": "planned {alt:g} m",
+        "capture_x": "distance to nearest planned point [m]",
+        "capture_y": "number of images",
+        "capture_title": "Capture position error",
+    },
+}
+
+
+def _draw_track(
+    path: Path,
+    track: Sequence[M.TrackPoint],
+    planned: Sequence[tuple[float, float]],
+    captures: Sequence[dict[str, Any]],
+    rows: Sequence[dict[str, Any]],
+    *,
+    title: str,
+    text: dict[str, str],
+    dpi: int = 140,
+) -> None:
+    if not planned and not track:
+        return
+    origin = planned[0] if planned else (track[0].lat, track[0].lon)
+    plane = M.LocalPlane(origin[0], origin[1])
+    fig, ax = plt.subplots(figsize=(7, 7))
+    if planned:
+        pxy = [plane.to_xy(la, lo) for la, lo in planned]
+        ax.plot([p[0] for p in pxy], [p[1] for p in pxy],
+                "--", color="#1f6feb", lw=1.2, label=text["planned"])
+        ax.plot([p[0] for p in pxy], [p[1] for p in pxy],
+                ".", color="#1f6feb", ms=3)
+    if track:
+        txy = [plane.to_xy(p.lat, p.lon) for p in track]
+        ax.plot([p[0] for p in txy], [p[1] for p in txy],
+                "-", color="#dc2626", lw=1.0, label=text["flown"])
+    saved = _saved_captures(captures)
+    cxy = [plane.to_xy(c["lat"], c["lon"]) for c in saved
+           if c.get("lat") is not None and c.get("lon") is not None]
+    if cxy:
+        ax.plot([p[0] for p in cxy], [p[1] for p in cxy],
+                "o", color="#15803d", ms=4, alpha=0.7, label=text["images"])
+    reached_xy = []
+    for row in rows:
+        if row.get("type") != "MISSION_ITEM_REACHED" or row.get("t") is None:
+            continue
+        t = float(row["t"])
+        if track and not (track[0].t - 0.5 <= t <= track[-1].t + 0.5):
+            continue
+        xy = _nearest_xy(plane, track, t)
+        if xy is None:
+            continue
+        reached_xy.append((xy, row.get("seq")))
+    if reached_xy:
+        ax.plot([p[0][0] for p in reached_xy], [p[0][1] for p in reached_xy],
+                "D", color="#111827", ms=5, label=text["reached"])
+        for (x, y), seq in reached_xy:
+            ax.annotate(str(seq), (x, y), textcoords="offset points",
+                        xytext=(3, 3), fontsize=7, color="#111827")
+    ax.set_aspect("equal", "datalim")
+    ax.set_xlabel(text["east"])
+    ax.set_ylabel(text["north"])
+    ax.set_title(title)
+    ax.grid(alpha=0.3)
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(path, dpi=dpi)
+    plt.close(fig)
+
+
 def _plot_all(
     out_dir: Path,
     track: Sequence[M.TrackPoint],
+    airborne: Sequence[M.TrackPoint],
+    rows: Sequence[dict[str, Any]],
     planned: Sequence[tuple[float, float]],
     captures: Sequence[dict[str, Any]],
     planned_alt: Optional[float],
     result: dict[str, Any],
+    lang: str = "sl",
+    dpi: int = 140,
 ) -> None:
-    # 1. Pot: nacrtovana vs. dejanska, v metrih od prve nacrtovane tocke.
-    if planned or track:
-        origin = planned[0] if planned else (track[0].lat, track[0].lon)
-        plane = M.LocalPlane(origin[0], origin[1])
-        fig, ax = plt.subplots(figsize=(7, 7))
-        if planned:
-            pxy = [plane.to_xy(la, lo) for la, lo in planned]
-            ax.plot([p[0] for p in pxy], [p[1] for p in pxy],
-                    "--", color="#1f6feb", lw=1.2, label="nacrtovano")
-            ax.plot([p[0] for p in pxy], [p[1] for p in pxy],
-                    ".", color="#1f6feb", ms=3)
-        if track:
-            txy = [plane.to_xy(p.lat, p.lon) for p in track]
-            ax.plot([p[0] for p in txy], [p[1] for p in txy],
-                    "-", color="#dc2626", lw=1.0, label="dejansko")
-        cxy = [plane.to_xy(c["lat"], c["lon"]) for c in captures
-               if c.get("lat") is not None and c.get("lon") is not None]
-        if cxy:
-            ax.plot([p[0] for p in cxy], [p[1] for p in cxy],
-                    "o", color="#15803d", ms=4, alpha=0.7, label="posnetki")
-        ax.set_aspect("equal", "datalim")
-        ax.set_xlabel("vzhod [m]")
-        ax.set_ylabel("sever [m]")
-        ax.set_title(f"Pot --- {result.get('session')}")
-        ax.grid(alpha=0.3)
-        ax.legend()
-        fig.tight_layout()
-        fig.savefig(out_dir / "track.png", dpi=140)
-        plt.close(fig)
+    text = _PLOT_TEXT[lang]
+    _draw_track(
+        out_dir / "track.png", track, planned, captures, rows,
+        title=text["window"], text=text, dpi=dpi,
+    )
+    _draw_track(
+        out_dir / "track_airborne.png", airborne, planned, captures, rows,
+        title=text["airborne"], text=text, dpi=dpi,
+    )
 
     # 2. Odstopanje od poti v casu.
     if planned and track:
@@ -259,12 +369,12 @@ def _plot_all(
             ax.axhline(tt["rms"], color="#1f6feb", ls="--", lw=1,
                        label=f"RMS = {tt['rms']} m")
             ax.legend()
-        ax.set_xlabel("cas od zacetka [s]")
-        ax.set_ylabel("odstopanje [m]")
-        ax.set_title("Odstopanje od nacrtovane trajektorije")
+        ax.set_xlabel(text["time"])
+        ax.set_ylabel(text["cross"])
+        ax.set_title(text["cross_title"])
         ax.grid(alpha=0.3)
         fig.tight_layout()
-        fig.savefig(out_dir / "crosstrack.png", dpi=140)
+        fig.savefig(out_dir / "crosstrack.png", dpi=dpi)
         plt.close(fig)
 
     # 3. Profil visine.
@@ -274,35 +384,36 @@ def _plot_all(
         if alts:
             fig, ax = plt.subplots(figsize=(9, 3.4))
             ax.plot([a[0] for a in alts], [a[1] for a in alts],
-                    color="#0f766e", lw=1.0, label="dejansko")
+                    color="#0f766e", lw=1.0, label=text["flown"])
             if planned_alt:
                 ax.axhline(planned_alt, color="#1f6feb", ls="--", lw=1,
-                           label=f"nacrtovano {planned_alt:g} m")
-            ax.set_xlabel("cas od zacetka [s]")
-            ax.set_ylabel("visina AGL [m]")
-            ax.set_title("Profil visine")
+                           label=text["planned_alt"].format(alt=planned_alt))
+            ax.set_xlabel(text["time"])
+            ax.set_ylabel(text["alt"])
+            ax.set_title(text["alt_title"])
             ax.grid(alpha=0.3)
             ax.legend()
             fig.tight_layout()
-            fig.savefig(out_dir / "altitude.png", dpi=140)
+            fig.savefig(out_dir / "altitude.png", dpi=dpi)
             plt.close(fig)
 
     # 4. Histogram odstopanja lokacij posnetkov.
-    if captures and planned:
+    saved = _saved_captures(captures)
+    if saved and planned:
         dists = [min(M.haversine_m(c["lat"], c["lon"], la, lo)
                      for la, lo in planned)
-                 for c in captures
+                 for c in saved
                  if c.get("lat") is not None and c.get("lon") is not None]
         if dists:
             fig, ax = plt.subplots(figsize=(6, 3.4))
             ax.hist(dists, bins=min(30, max(5, len(dists) // 3)),
                     color="#15803d", alpha=0.8)
-            ax.set_xlabel("razdalja do najblizje nacrtovane tocke [m]")
-            ax.set_ylabel("stevilo posnetkov")
-            ax.set_title("Tocnost zajema")
+            ax.set_xlabel(text["capture_x"])
+            ax.set_ylabel(text["capture_y"])
+            ax.set_title(text["capture_title"])
             ax.grid(alpha=0.3)
             fig.tight_layout()
-            fig.savefig(out_dir / "capture.png", dpi=140)
+            fig.savefig(out_dir / "capture.png", dpi=dpi)
             plt.close(fig)
 
 
@@ -328,8 +439,9 @@ def render_campaign(results: list[dict[str, Any]]) -> str:
             f"| {r.get('duration_s') or '—'} | {tt.get('rms', '—')} "
             f"| {tt.get('p95', '—')} | {al.get('rms', '—')} "
             f"| {tl.get('hz', '—')} "
-            f"| {me.get('reached_count', '—')}/{me.get('item_count') or '—'} "
-            f"| {cp.get('captures', 0)} | {me.get('error_count', 0)} |"
+            f"| {me.get('reached_nav_count', '—')}/"
+            f"{me.get('planned_nav_count') or '—'} "
+            f"| {cp.get('captured_files', 0)} | {me.get('error_count', 0)} |"
         )
     lines.append("")
     return "\n".join(lines)

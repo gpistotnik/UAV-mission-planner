@@ -176,11 +176,61 @@ def test_mission_completion_counts_unique_reached() -> None:
         {"t": 3.0, "type": "MISSION_ITEM_REACHED", "seq": 2},
         {"t": 4.0, "type": "STATUSTEXT", "severity": 2, "text": "PreArm: GPS"},
     ]
-    res = mission_completion(rows, item_count=5)
+    items = [
+        {"seq": 0, "command_name": "NAV_WAYPOINT"},
+        {"seq": 1, "command_name": "NAV_WAYPOINT"},
+        {"seq": 2, "command_name": "NAV_WAYPOINT"},
+        {"seq": 3, "command_name": "DO_CHANGE_SPEED"},
+        {"seq": 4, "command_name": "NAV_LAND"},
+    ]
+    res = mission_completion(rows, item_count=5, items=items)
     assert res["reached_count"] == 2
     assert res["max_seq_reached"] == 2
     assert res["error_count"] == 1
+    assert res["planned_nav_count"] == 2
+    assert res["reached_nav_count"] == 2
+    assert res["completion_pct"] == pytest.approx(100.0)
+
+
+def test_mission_completion_ignores_non_nav_items() -> None:
+    items = [
+        {"seq": 0, "command_name": "NAV_WAYPOINT"},
+        {"seq": 1, "command_name": "DO_CHANGE_SPEED"},
+        {"seq": 2, "command_name": "NAV_TAKEOFF"},
+        {"seq": 3, "command_name": "DO_SET_CAM_TRIGG_DIST"},
+        {"seq": 4, "command_name": "NAV_WAYPOINT"},
+        {"seq": 5, "command_name": "NAV_WAYPOINT"},
+        {"seq": 6, "command_name": "IMAGE_START_CAPTURE"},
+        {"seq": 7, "command_name": "NAV_RETURN_TO_LAUNCH"},
+    ]
+    rows = [
+        {"type": "MISSION_ITEM_REACHED", "seq": seq}
+        for seq in (0, 1, 2, 3, 4)
+    ]
+    res = mission_completion(rows, item_count=len(items), items=items)
+    assert res["reached_count"] == 5
+    assert res["planned_nav_count"] == 2
+    assert res["reached_nav_count"] == 1
     assert res["completion_pct"] == pytest.approx(50.0)
+    assert "completion_pct" not in mission_completion(rows, item_count=8)
+
+
+@pytest.mark.parametrize("severity", [0, 1, 2, 3])
+def test_severity_at_most_error_is_counted(severity: int) -> None:
+    rows = [{"type": "STATUSTEXT", "severity": severity, "text": "x"}]
+    assert mission_completion(rows)["error_count"] == 1
+
+
+def test_severity_zero_is_emergency_not_replaced_by_default() -> None:
+    rows = [
+        {"type": "STATUSTEXT", "severity": 0, "text": "emergency"},
+        {"type": "STATUSTEXT", "severity": 4, "text": "warning"},
+        {"type": "STATUSTEXT", "severity": None, "text": "missing"},
+        {"type": "STATUSTEXT", "text": "absent"},
+    ]
+    res = mission_completion(rows)
+    assert res["error_count"] == 1
+    assert res["error_messages"] == ["emergency"]
 
 
 # ---------------------------------------------------------------------------
@@ -190,17 +240,22 @@ def test_capture_accuracy_measures_distance_to_nearest_planned() -> None:
     plane = LocalPlane(LAT0, LON0)
     planned = [plane.to_latlon(0.0, 0.0), plane.to_latlon(0.0, 50.0)]
     off_lat, off_lon = plane.to_latlon(3.0, 0.0)  # 3 m stran od prve tocke
+    far_lat, far_lon = plane.to_latlon(40.0, 0.0)
     captures = [
         {"lat": off_lat, "lon": off_lon, "captured": True,
          "trigger_to_capture_ms": 120.0},
         {"lat": None, "lon": None, "captured": False},
+        {"lat": far_lat, "lon": far_lon, "captured": False,
+         "trigger_to_capture_ms": 900.0},
     ]
     res = capture_accuracy(captures, planned)
-    assert res["captures"] == 2
+    assert res["captures"] == 3
     assert res["captured_files"] == 1
-    assert res["without_position"] == 1
+    assert res["without_position"] == 0
+    assert res["distance_to_planned"]["n"] == 1
     assert res["distance_to_planned"]["max"] == pytest.approx(3.0, abs=0.02)
     assert res["trigger_to_capture_ms"]["mean"] == pytest.approx(120.0)
+    assert res["trigger_to_capture_ms"]["n"] == 1
 
 
 def test_capture_accuracy_without_captures() -> None:

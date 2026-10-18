@@ -319,10 +319,54 @@ def telemetry_rate_stats(rows: Sequence[dict[str, Any]],
     return stats
 
 
+def status_severity(raw: Any) -> int:
+    """Stevilcna stopnja ``STATUSTEXT``.
+
+    Manjkajoca ali neveljavna vrednost je 6 (``MAV_SEVERITY_INFO``).
+    Nicla je ``MAV_SEVERITY_EMERGENCY`` in mora ostati 0: izraz ``raw or 6``
+    jo v Pythonu zamenja s 6, ker je 0 logicno neresnicen.
+    """
+    if raw is None:
+        return 6
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return 6
+
+
+def planned_nav_seqs(items: Sequence[dict[str, Any]]) -> list[int]:
+    """Zaporedne stevilke ``NAV_WAYPOINT``, brez domace tocke ``seq`` 0.
+
+    ``item_count - 1`` tega nabora ne opise: ``build_mission_items`` v isti
+    seznam vstavi tudi ``DO_CHANGE_SPEED``, ``NAV_TAKEOFF``,
+    ``DO_SET_CAM_TRIGG_DIST``, ``IMAGE_START_CAPTURE`` in zakljucni ukaz.
+    """
+    seqs: list[int] = []
+    for it in items:
+        if it.get("command_name") != "NAV_WAYPOINT":
+            continue
+        seq = it.get("seq")
+        if seq is None:
+            continue
+        seq_i = int(seq)
+        if seq_i == 0:
+            continue
+        seqs.append(seq_i)
+    return seqs
+
+
 def mission_completion(
-    rows: Sequence[dict[str, Any]], item_count: Optional[int] = None,
+    rows: Sequence[dict[str, Any]],
+    item_count: Optional[int] = None,
+    items: Optional[Sequence[dict[str, Any]]] = None,
 ) -> dict[str, Any]:
-    """Zanesljivost izvedbe: kateri ukazi misije so bili doseženi."""
+    """Zanesljivost izvedbe: kateri ukazi misije so bili doseženi.
+
+    ``completion_pct`` je delez dosezenih navigacijskih tock
+    ``NAV_WAYPOINT`` (brez domace tocke) med vsemi takimi tockami v
+    ``plan.json``. Brez seznama ``items`` odstotka ni, ker
+    ``item_count - 1`` med navigacijske tocke steje tudi nenavigacijske ukaze.
+    """
     reached = sorted({int(r["seq"]) for r in rows
                       if r.get("type") == "MISSION_ITEM_REACHED"
                       and r.get("seq") is not None})
@@ -331,12 +375,17 @@ def mission_completion(
         "max_seq_reached": reached[-1] if reached else None,
         "item_count": item_count,
     }
-    if item_count:
-        # Zadnji item je zakljucni ukaz (LAND/RTL) --- dosezenih je lahko
-        # najvec item_count - 1 navigacijskih.
-        out["completion_pct"] = round(100.0 * len(reached) / max(1, item_count - 1), 1)
+    if items is not None:
+        planned = planned_nav_seqs(items)
+        planned_set = set(planned)
+        reached_nav = [seq for seq in reached if seq in planned_set]
+        out["planned_nav_count"] = len(planned)
+        out["reached_nav_count"] = len(reached_nav)
+        if planned:
+            out["completion_pct"] = round(
+                100.0 * len(reached_nav) / len(planned), 1)
     errors = [r for r in rows if r.get("type") == "STATUSTEXT"
-              and int(r.get("severity", 6) or 6) <= 3]
+              and status_severity(r.get("severity", 6)) <= 3]
     out["error_messages"] = [r.get("text") for r in errors][:20]
     out["error_count"] = len(errors)
     return out
@@ -354,9 +403,12 @@ def capture_accuracy(
     """
     if not captures:
         return {"n": 0}
+    # Prostorska napaka in zakasnitev veljata za uspesno zapisane JPEG-e.
+    # Zapis s ``captured: false`` ima lahko koordinate, a slike ni.
+    saved = [c for c in captures if c.get("captured") is True]
     dists: list[float] = []
     unmatched = 0
-    for c in captures:
+    for c in saved:
         lat, lon = c.get("lat"), c.get("lon")
         if lat is None or lon is None:
             unmatched += 1
@@ -365,7 +417,7 @@ def capture_accuracy(
             continue
         dists.append(min(haversine_m(lat, lon, plat, plon)
                          for plat, plon in planned))
-    lat_ms = [float(c["trigger_to_capture_ms"]) for c in captures
+    lat_ms = [float(c["trigger_to_capture_ms"]) for c in saved
               if c.get("trigger_to_capture_ms") is not None]
     return {
         "unit": "m",
