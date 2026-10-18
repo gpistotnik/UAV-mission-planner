@@ -2,6 +2,8 @@
  * Stran za onboard kalibracijo kompasa — samo napredek in ukazi.
  */
 
+import { t } from "./i18n";
+
 interface CompassSnap {
   connected: boolean;
   port?: string | null;
@@ -95,9 +97,9 @@ export function setupMagCal(csrf: string, autoStart: boolean): void {
       if (data.ok && data.value !== undefined && threshInput) {
         threshInput.value = String(Math.round(data.value));
         threshLoaded = true;
-        setThreshMsg(`Na krmilniku: ${Math.round(data.value)} mG`);
+        setThreshMsg(t("smc.thresh_on_fc", { value: Math.round(data.value) }));
       } else if (!data.ok) {
-        setThreshMsg(`✗ ${data.error || "Branje ni uspelo"}`, "err");
+        setThreshMsg(`✗ ${data.error || t("smc.read_failed")}`, "err");
       }
     } catch (e) {
       setThreshMsg(`✗ ${(e as Error).message}`, "err");
@@ -126,12 +128,12 @@ export function setupMagCal(csrf: string, autoStart: boolean): void {
     if (connEl) {
       if (snap.connected) {
         connEl.className = "mc-conn ok";
-        connEl.textContent = `✓ ${snap.port || "povezano"} · ${snap.heartbeat.mode || "—"}`;
+        connEl.textContent = t("smc.connected", { port: snap.port || t("smc.connected_fallback"), mode: snap.heartbeat.mode || "—" });
       } else {
         connEl.className = "mc-conn off";
         connEl.textContent = snap.error
           ? `✗ ${snap.error}`
-          : "● Brez povezave s krmilnikom — najprej poveži na Nadzoru";
+          : t("smc.no_connection");
       }
     }
 
@@ -155,29 +157,29 @@ export function setupMagCal(csrf: string, autoStart: boolean): void {
     }
     if (fillEl) fillEl.style.width = `${success ? 100 : showPct}%`;
 
-    let label = c?.cal_status_label || "pripravljen";
+    let label = c?.cal_status_label || t("smc.label_ready");
     let phaseCls = "idle";
-    let hint = "Letalnik mora biti DISARMED. Po zagonu ga počasi obračaj v vse smeri.";
+    let hint = t("smc.hint_idle");
 
     if (!snap.connected) {
-      label = "ni povezave";
+      label = t("smc.label_no_connection");
       phaseCls = "idle";
     } else if (snap.heartbeat.armed) {
-      label = "ARMED — najprej DISARM";
+      label = t("smc.label_armed_disarm_first");
       phaseCls = "fail";
-      hint = "Kalibracija ni dovoljena, dokler je letalnik armiran.";
+      hint = t("smc.hint_armed");
     } else if (success) {
-      label = "USPEH";
+      label = t("smc.label_success");
       phaseCls = "success";
-      hint = "Kalibracija končana. Offseti so shranjeni. Lahko se vrneš na Nadzor.";
+      hint = t("smc.hint_success");
     } else if (failed) {
-      label = (c?.cal_status_label || "napaka").toUpperCase();
+      label = (c?.cal_status_label || t("smc.label_error")).toUpperCase();
       phaseCls = "fail";
-      hint = "Kalibracija ni uspela. Poskusi znova stran od kovine in motorjev.";
+      hint = t("smc.hint_failed");
     } else if (running) {
-      label = (c?.cal_status_label || "kalibracija").toUpperCase();
+      label = (c?.cal_status_label || t("smc.label_calibration")).toUpperCase();
       phaseCls = "run";
-      hint = "Počasi obračaj dron v vse smeri (kot žogo), dokler ne prideš do 100 %.";
+      hint = t("smc.hint_running");
     }
 
     if (statusEl) statusEl.textContent = label;
@@ -216,19 +218,19 @@ export function setupMagCal(csrf: string, autoStart: boolean): void {
 
   async function startCal(): Promise<void> {
     busy = true;
-    setMsg("Zaganjam…");
+    setMsg(t("smc.starting"));
     try {
       const res = await post("start");
       if (res.auth_required) {
         setMsg(
-          `${res.error || "Prijava"} — odpri Nadzor in se prijavi.`,
+          t("smc.auth_required", { error: res.error || t("smc.login") }),
           "err",
         );
       } else if (res.ok) {
         startedOnce = true;
-        setMsg("Kalibracija teče — obračaj dron.", "ok");
+        setMsg(t("smc.cal_running"), "ok");
       } else {
-        setMsg(`✗ ${res.error || "Zagon ni uspel"}`, "err");
+        setMsg(`✗ ${res.error || t("smc.start_failed")}`, "err");
       }
       if (res.statustexts?.length && stEl) {
         stEl.textContent = res.statustexts.map((s) => s.text).join(" | ");
@@ -242,8 +244,7 @@ export function setupMagCal(csrf: string, autoStart: boolean): void {
   }
 
   btnStart?.addEventListener("click", () => {
-    if (!window.confirm(
-      "Zaženem kalibracijo kompasa?\nDron mora biti DISARMED — nato ga obračaj v vse smeri.")) {
+    if (!window.confirm(t("smc.start_confirm"))) {
       return;
     }
     void startCal();
@@ -251,10 +252,10 @@ export function setupMagCal(csrf: string, autoStart: boolean): void {
 
   btnCancel?.addEventListener("click", async () => {
     busy = true;
-    setMsg("Prekinjam…");
+    setMsg(t("smc.cancelling"));
     try {
       const res = await post("cancel");
-      setMsg(res.ok ? "Prekinjeno." : `✗ ${res.error || "Napaka"}`,
+      setMsg(res.ok ? t("smc.cancelled") : `✗ ${res.error || t("smc.error")}`,
              res.ok ? "" : "err");
     } catch (e) {
       setMsg(`✗ ${(e as Error).message}`, "err");
@@ -267,16 +268,15 @@ export function setupMagCal(csrf: string, autoStart: boolean): void {
   btnThreshSave?.addEventListener("click", async () => {
     const raw = threshInput ? parseFloat(threshInput.value) : NaN;
     if (!Number.isFinite(raw)) {
-      setThreshMsg("✗ Vnesi število 0–500.", "err");
+      setThreshMsg(`✗ ${t("smc.enter_number_range")}`, "err");
       return;
     }
     const value = Math.max(0, Math.min(500, Math.round(raw)));
-    if (value === 0 && !window.confirm(
-      "ARMING_MAGTHRESH = 0 izklopi PreArm preverjanje magnetnega polja.\nNadaljujem?")) {
+    if (value === 0 && !window.confirm(t("smc.magthresh_zero_confirm"))) {
       return;
     }
     if (btnThreshSave) btnThreshSave.disabled = true;
-    setThreshMsg("Shranjujem…");
+    setThreshMsg(t("smc.saving"));
     try {
       const r = await fetch("/api/mavlink/param/set/", {
         method: "POST",
@@ -288,12 +288,12 @@ export function setupMagCal(csrf: string, autoStart: boolean): void {
       });
       const data = await r.json().catch(() => ({})) as CmdResult;
       if (data.auth_required) {
-        setThreshMsg(`✗ ${data.error || "Prijava"}`, "err");
+        setThreshMsg(`✗ ${data.error || t("smc.login")}`, "err");
       } else if (data.ok && data.value !== undefined) {
         if (threshInput) threshInput.value = String(Math.round(data.value));
-        setThreshMsg(`✓ Shranjeno: ${Math.round(data.value)} mG`, "ok");
+        setThreshMsg(t("smc.saved_value", { value: Math.round(data.value) }), "ok");
       } else {
-        setThreshMsg(`✗ ${data.error || "Zapis ni uspel"}`, "err");
+        setThreshMsg(`✗ ${data.error || t("smc.write_failed")}`, "err");
       }
     } catch (e) {
       setThreshMsg(`✗ ${(e as Error).message}`, "err");

@@ -66,6 +66,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "core.i18n.language_context",
             ],
         },
     },
@@ -97,10 +98,11 @@ AUTH_PASSWORD_VALIDATORS = [
 # ---------------------------------------------------------------------------
 # Jezik in casovni pas
 # ---------------------------------------------------------------------------
-# Vmesnik je enojezicen (slovenscina). Prevajalski sloj je bil odstranjen:
-# besedila so neposredno v predlogah in modelih, URL-ji nimajo jezikovne
-# predpone. USE_I18N=False izklopi Djangov prevajalski stroj, kar odpravi
-# odvecno delo ob vsakem izrisu predloge.
+# Vmesnik je dvojezicen (slovenscina primarno, anglescina opcijsko). Namesto
+# Djangovega prevajalskega stroja (z jezikovnimi predponami v URL-jih) se
+# uporablja lahek deljeni katalog `locale/catalog.json`, ki ga berejo
+# predloge ({% t %}), pogledi (core.i18n.tr) in TypeScript frontend. Izbrani
+# jezik je v piskotku `uav_lang`. USE_I18N zato ostaja izklopljen.
 LANGUAGE_CODE = "sl"
 TIME_ZONE = config("DJANGO_TIME_ZONE", default="Europe/Ljubljana")
 USE_I18N = False

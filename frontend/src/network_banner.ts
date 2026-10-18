@@ -5,6 +5,7 @@
  * Ta modul samo poslusca dogodek `uav-network-status` in prikaze odlozeni
  * preklop + gumb "Preklopi zdaj".
  */
+import { t } from "./i18n";
 
 interface NetworkPending {
   target: "CLIENT" | "AP";
@@ -20,8 +21,8 @@ interface NetworkStatus {
 }
 
 const MODE_LABEL: Record<string, string> = {
-  CLIENT: "klient (domače omrežje)",
-  AP: "dostopna točka (hotspot)",
+  get CLIENT() { return t("nb.mode_client"); },
+  get AP() { return t("nb.mode_ap"); },
 };
 
 function ensureBanner(): HTMLDivElement {
@@ -33,7 +34,7 @@ function ensureBanner(): HTMLDivElement {
   el.style.display = "none";
   el.innerHTML = `
     <span class="net-switch-text"></span>
-    <button type="button" class="net-switch-btn">Preklopi zdaj</button>
+    <button type="button" class="net-switch-btn">${t("nb.switch_now")}</button>
   `;
   document.body.prepend(el);
   return el;
@@ -54,9 +55,7 @@ export function setupNetworkBanner(csrf: string): void {
     banner.style.display = "flex";
     const label = MODE_LABEL[pending.target] || pending.target;
     const s = Math.max(0, Math.ceil(pending.remaining_s));
-    textEl.textContent =
-      `⚠ Omrežje se bo prek fizičnega stikala preklopilo v način "${label}" ` +
-      `čez ${s} s.`;
+    textEl.textContent = t("nb.pending_text", { label, seconds: s });
     btn.disabled = busy;
   }
 
@@ -91,7 +90,7 @@ export function setupNetworkBanner(csrf: string): void {
   btn.addEventListener("click", async () => {
     busy = true;
     btn.disabled = true;
-    btn.textContent = "Preklapljam…";
+    btn.textContent = t("nb.switching");
     try {
       await fetch("/api/network/force/", {
         method: "POST",
@@ -103,7 +102,7 @@ export function setupNetworkBanner(csrf: string): void {
       /* poll bo osvezil */
     } finally {
       busy = false;
-      btn.textContent = "Preklopi zdaj";
+      btn.textContent = t("nb.switch_now");
     }
   });
 }

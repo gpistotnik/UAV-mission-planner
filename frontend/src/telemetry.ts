@@ -7,6 +7,7 @@
  *   posodobi HUD panel + Leaflet marker (pozicija + heading).
  */
 import L from "leaflet";
+import { t } from "./i18n";
 
 const POLL_MS = 500;
 const PORTS_REFRESH_MS = 5000;
@@ -92,7 +93,7 @@ function fmt(n: number | null | undefined, digits: number = 1, suffix: string = 
 function fixTypeLabel(fix: number | null | undefined): string {
   // Standardni MAVLink GPS_FIX_TYPE enum
   switch (fix) {
-    case 0: case 1: return "ne";
+    case 0: case 1: return t("tel.fix_none");
     case 2: return "2D";
     case 3: return "3D";
     case 4: return "DGPS";
@@ -176,7 +177,7 @@ export function setupTelemetry(map: L.Map, csrf: string): void {
         statusEl.textContent = `✓ ${snap.port} @ ${snap.baud}`;
         statusEl.className = "tm-status ok";
       } else {
-        statusEl.textContent = "● ni povezave";
+        statusEl.textContent = `● ${t("tel.no_connection")}`;
         statusEl.className = "tm-status off";
       }
     }
@@ -228,8 +229,8 @@ export function setupTelemetry(map: L.Map, csrf: string): void {
       if (mpFill) mpFill.style.width = `${pct}%`;
       if (mpText) {
         mpText.textContent =
-          `${mis.name ?? "misija"} · ukaz ${cur}/${total}` +
-          (mis.reached_seq !== null ? ` · dosežen ${mis.reached_seq}` : "");
+          `${mis.name ?? t("tel.mission")} · ${t("tel.command_progress", { cur, total })}` +
+          (mis.reached_seq !== null ? ` · ${t("tel.reached", { seq: mis.reached_seq })}` : "");
       }
     } else if (mpWrap) {
       mpWrap.style.display = "none";
@@ -323,7 +324,7 @@ export function setupTelemetry(map: L.Map, csrf: string): void {
       if (ports.length === 0) {
         const opt = document.createElement("option");
         opt.value = "";
-        opt.textContent = "(ni vidnih naprav)";
+        opt.textContent = t("tel.no_devices");
         portSel!.appendChild(opt);
       }
       ports.forEach(p => {
@@ -335,7 +336,7 @@ export function setupTelemetry(map: L.Map, csrf: string): void {
       });
       if (cur && ports.some(p => p.device === cur)) portSel!.value = cur;
     } catch (e) {
-      setError(`Napaka pri branju portov: ${(e as Error).message}`);
+      setError(t("tel.ports_read_error", { error: (e as Error).message }));
     }
   }
 
@@ -364,8 +365,8 @@ export function setupTelemetry(map: L.Map, csrf: string): void {
   btnCon.addEventListener("click", async () => {
     const device = portSel!.value;
     const baud = parseInt(baudSel?.value || "115200", 10);
-    if (!device) { setError("Izberi serijsko napravo."); return; }
-    setError("Povezujem...");
+    if (!device) { setError(t("tel.select_device")); return; }
+    setError(t("tel.connecting"));
     btnCon.disabled = true;
     const snap = await jpost("/api/mavlink/connect/", csrf, { device, baud });
     applySnapshot(snap);

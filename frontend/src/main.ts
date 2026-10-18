@@ -15,6 +15,7 @@ import { setupMagCal } from "./mag_cal";
 import { setupNetworkBanner } from "./network_banner";
 import { setupSettings } from "./settings";
 import { setupGallery } from "./gallery";
+import { t } from "./i18n";
 
 /* ===========================================================================
  * Dashboard
@@ -103,10 +104,10 @@ function setupSystemStats() {
       }
 
       // Temp
-      const t = s.temperature_c;
-      if (t !== null && t !== undefined) {
-        tempEl!.textContent = `${t.toFixed(1)}°C`;
-        tempEl!.className = cls(t, 70, 80);
+      const temp = s.temperature_c;
+      if (temp !== null && temp !== undefined) {
+        tempEl!.textContent = `${temp.toFixed(1)}°C`;
+        tempEl!.className = cls(temp, 70, 80);
       } else {
         tempEl!.textContent = "—";
       }
@@ -148,14 +149,14 @@ function setupSystemStats() {
             warnEl.className = "sys-warning crit";
             const flags = thr.flags || {};
             const issues: string[] = [];
-            if (flags.under_voltage_now) issues.push("PODNAPAJANJE");
-            if (flags.throttled_now) issues.push("THROTTLE");
-            if (flags.soft_temp_limit_now) issues.push("VROČINA");
-            warnEl.textContent = `⚠ ${issues.join(", ")} (zdaj)! Zamenjaj napajalnik ali zniži obremenitev.`;
+            if (flags.under_voltage_now) issues.push(t("main.flag_undervoltage"));
+            if (flags.throttled_now) issues.push(t("main.flag_throttle"));
+            if (flags.soft_temp_limit_now) issues.push(t("main.flag_overheat"));
+            warnEl.textContent = t("main.sys_warn_critical", { issues: issues.join(", ") });
           } else if (sev === "warning") {
             warnEl.style.display = "block";
             warnEl.className = "sys-warning";
-            warnEl.textContent = `⚠ Brownout v zgodovini (od boot-a). Spremljaj napajanje.`;
+            warnEl.textContent = t("main.sys_warn_brownout");
           } else {
             warnEl.style.display = "none";
           }
@@ -290,13 +291,13 @@ function setupCameraStream(configuredUrl: string) {
   function loadStream(url: string) {
     started = true;
     if (status) {
-      status.textContent = "Povezujem se s kamero...";
+      status.textContent = t("main.cam_connecting");
       status.className = "cam-status";
     }
     img!.onload  = () => { if (status) { status.className = "cam-status ok"; } };
     img!.onerror = () => {
       if (status) {
-        status.textContent = "Kamera ni dosegljiva na " + url;
+        status.textContent = t("main.cam_unreachable", { url });
         status.className = "cam-status error";
       }
     };
@@ -325,7 +326,7 @@ function setupCameraStream(configuredUrl: string) {
   };
 
   if (status) {
-    status.textContent = "Kamera se naloži, ko je vidna…";
+    status.textContent = t("main.cam_load_when_visible");
     status.className = "cam-status";
   }
   startIfVisible();
@@ -356,7 +357,7 @@ function setupCameraShutter(csrf: string) {
     btn.classList.add("firing");
     flash?.classList.add("on");
     window.setTimeout(() => flash?.classList.remove("on"), 180);
-    setMsg("Shranjujem…");
+    setMsg(t("main.capturing"));
 
     const sel = document.getElementById("mission-select") as HTMLSelectElement | null;
     const missionId = sel?.value ? Number(sel.value) : null;
@@ -375,11 +376,11 @@ function setupCameraShutter(csrf: string) {
       });
       const data = await r.json().catch(() => ({}));
       if (!r.ok || data.ok === false) {
-        let err = data.error || `Napaka ${r.status}`;
+        let err = data.error || t("main.error_status", { status: r.status });
         if (data.auth_required && data.login_url) {
           setMsg("");
           if (msg) {
-            msg.innerHTML = `${err} — <a href="${data.login_url}">prijava</a>`;
+            msg.innerHTML = t("main.capture_fail_login", { error: err, url: data.login_url });
             msg.className = "cam-shutter-msg error";
           }
         } else {
@@ -387,9 +388,9 @@ function setupCameraShutter(csrf: string) {
         }
         return;
       }
-      setMsg(`Shranjeno: ${data.file || "slika"}`, "ok");
+      setMsg(t("main.captured", { file: data.file || t("main.image") }), "ok");
     } catch (e) {
-      setMsg("Napaka: " + (e as Error).message, "error");
+      setMsg(t("main.error_prefix", { error: (e as Error).message }), "error");
     } finally {
       busy = false;
       btn.disabled = false;
@@ -459,9 +460,12 @@ function setupMissionSelector(map: L.Map, _csrf: string) {
     if (info) {
       const wpCount = mission.elements.filter((e: any) => e.element_type === "WP").length;
       const mapCount = mission.elements.filter((e: any) => e.element_type === "MAP").length;
-      info.textContent =
-        `${wpCount} waypoint(ov), ${mapCount} map gradnik(ov) · ` +
-        `vzlet ${mission.default_altitude_m} m, hitr. ${mission.default_speed_ms} m/s`;
+      info.textContent = t("main.mission_summary", {
+        wpCount,
+        mapCount,
+        alt: mission.default_altitude_m,
+        speed: mission.default_speed_ms,
+      });
     }
     if (sendBtn) sendBtn.disabled = false;
   }
@@ -474,7 +478,7 @@ function setupMissionSelector(map: L.Map, _csrf: string) {
       if (sendBtn) sendBtn.disabled = true;
       return;
     }
-    if (info) info.textContent = "Nalagam misijo...";
+    if (info) info.textContent = t("main.loading_mission");
     try {
       const res = await fetch(`/api/missions/${id}/get/`, {
         credentials: "same-origin",
@@ -483,7 +487,7 @@ function setupMissionSelector(map: L.Map, _csrf: string) {
       const mission = await res.json();
       renderMission(mission);
     } catch (e) {
-      if (info) info.textContent = `Napaka pri nalaganju: ${(e as Error).message}`;
+      if (info) info.textContent = t("main.load_error", { error: (e as Error).message });
       if (sendBtn) sendBtn.disabled = true;
     }
   });
@@ -492,11 +496,11 @@ function setupMissionSelector(map: L.Map, _csrf: string) {
     sendBtn.addEventListener("click", async () => {
       const id = sel.value;
       if (!id) return;
-      const origLabel = sendBtn.textContent || "Pošlji na drona";
+      const origLabel = sendBtn.textContent || t("main.send_to_drone");
       const setBusy = (label: string) => { sendBtn.disabled = true; sendBtn.textContent = label; };
       const setIdle = () => { sendBtn.disabled = false; sendBtn.textContent = origLabel; };
-      setBusy("Pošiljam…");
-      if (info) info.textContent = "Pošiljam misijo na Pixhawk…";
+      setBusy(t("main.sending"));
+      if (info) info.textContent = t("main.sending_to_pixhawk");
       try {
         const csrf = (window.PLANNER_BOOTSTRAP as any).csrfToken;
         const camChk = document.getElementById("mission-camera") as HTMLInputElement | null;
@@ -510,22 +514,33 @@ function setupMissionSelector(map: L.Map, _csrf: string) {
         if (data.ok) {
           const warn = (data.warnings || []).length > 0
             ? ` ⚠ ${(data.warnings || []).join(" ")}` : "";
+          const elapsed = data.elapsed_ms ? t("main.elapsed_ms", { ms: data.elapsed_ms }) : "";
           if (info) {
-            info.textContent =
-              `✓ Poslano: ${data.point_count} točk → ${data.count} MAVLink ukazov. ` +
-              `ACK: ${data.ack}${data.elapsed_ms ? `, ${data.elapsed_ms} ms` : ""}.${warn}`;
+            info.textContent = t("main.upload_ok", {
+              pointCount: data.point_count,
+              count: data.count,
+              ack: data.ack,
+              elapsed,
+              warn,
+            });
           }
         } else if (data.auth_required) {
           if (info) {
-            info.innerHTML = `✗ ${data.error} ` +
-              `<a href="${data.login_url || "/sl/prijava/"}">Prijava</a>`;
+            info.innerHTML = t("main.upload_fail_login", {
+              error: data.error,
+              url: data.login_url || "/prijava/",
+            });
           }
         } else {
-          if (info) info.textContent = `✗ ${data.error || "Neznana napaka"}` +
-            (data.uploaded !== undefined ? ` (poslanih ${data.uploaded}/${data.count})` : "");
+          const detail = data.uploaded !== undefined
+            ? t("main.upload_progress", { uploaded: data.uploaded, count: data.count }) : "";
+          if (info) info.textContent = t("main.upload_fail", {
+            error: data.error || t("main.unknown_error"),
+            detail,
+          });
         }
       } catch (e) {
-        if (info) info.textContent = `✗ Napaka: ${(e as Error).message}`;
+        if (info) info.textContent = t("main.upload_error", { error: (e as Error).message });
       } finally {
         setIdle();
       }
@@ -580,7 +595,7 @@ function bootstrapPlanner() {
 
   document.getElementById("btn-test-flight")?.addEventListener("click", () => {
     if (!tf.loadMission(state.mission, cfg.drones!)) {
-      alert("Misija mora imeti vsaj 2 tocki za test let.");
+      alert(t("main.testflight_min_points"));
       return;
     }
     if (tfOverlay) tfOverlay.style.display = "block";
@@ -647,9 +662,9 @@ function bootstrapPlanner() {
       });
       state.dirty = false;
       state.notify();
-      alert("Misija shranjena (#" + result.id + ").");
+      alert(t("main.mission_saved", { id: result.id ?? "?" }));
     } catch (e) {
-      alert("Napaka pri shranjevanju: " + (e as Error).message);
+      alert(t("main.save_error", { error: (e as Error).message }));
     }
   });
 
