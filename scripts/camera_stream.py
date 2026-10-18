@@ -10,10 +10,12 @@ Privzeto odpre kamero ``camera_num=0`` (CAM/DISP0 port na RPi 5) in
 servira:
 
 * ``/stream.mjpg`` — downscaled predogled (privzeto 1280×720),
-* ``/snapshot.jpg`` — en okvir iz predogleda (isti buffer kot stream),
-* ``/still.jpg`` — opcijski polni senzorski still (prekine predogled).
+* ``/preview.jpg`` — en okvir iz predogleda (isti buffer kot stream),
+* ``/snapshot.jpg`` in ``/still.jpg`` — polni senzorski still, iste
+  ločljivosti kot neposredni ``picamera2`` (privzeto PixelArraySize).
 
-Dashboard shutter in ``camera_trigger`` bereta ``/snapshot.jpg`` (preview).
+Dashboard shutter in ``camera_trigger`` bereta ``/snapshot.jpg``.
+Kakovost te slike je enaka neposrednemu stillu.
 
 Argumenti:
 
@@ -226,12 +228,12 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
             self._send_stream()
             return
 
-        if path.startswith("/snapshot.jpg") or path.startswith("/preview.jpg"):
-            # Preview okvir iz MJPEG bufferja — hitro, ne prekine streama.
+        if path.startswith("/preview.jpg"):
             self._send_preview()
             return
 
-        if path.startswith("/still.jpg"):
+        if path.startswith("/snapshot.jpg") or path.startswith("/still.jpg"):
+            # Polni still, ista ločljivost kot neposredni picamera2.
             self._send_still()
             return
 
@@ -247,7 +249,7 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _send_preview(self) -> None:
-        """En JPEG iz predogleda — dashboard shutter in camera_trigger."""
+        """En JPEG iz predogleda."""
         frame = self.runtime.latest_preview_frame()
         if frame is None:
             self.send_error(503, "Ni še nobenega okvirja.")
@@ -255,7 +257,7 @@ class StreamingHandler(server.BaseHTTPRequestHandler):
         self._send_bytes(frame, "image/jpeg")
 
     def _send_still(self) -> None:
-        """Polni senzorski still (opcijsko; prekine predogled za hip)."""
+        """Polni senzorski still, ista ločljivost kot neposredni picamera2."""
         try:
             frame = self.runtime.capture_still_jpeg()
         except Exception as exc:
@@ -360,7 +362,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         return 1
 
     LOGGER.info(
-        "MJPEG stream: http://%s:%d/stream.mjpg  snapshot(preview): /snapshot.jpg",
+        "MJPEG stream: http://%s:%d/stream.mjpg  snapshot(still): /snapshot.jpg",
         args.host, args.port,
     )
 

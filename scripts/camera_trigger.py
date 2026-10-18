@@ -31,9 +31,10 @@ ekspozicije ne oceni kot sredine intervala ``[t_capture, t_done]``.
 Pot zajema
 ----------
 Ob zagonu skript najprej pocaka na ``camera_stream.py`` (privzeto 20 s).
-Ce tok tece, sliko prebere z ``/snapshot.jpg`` (okvir predogleda, ne
-``/still.jpg``). Ce toka ni, odpre ``picamera2``. Ce tok in
-``picamera2`` nista na voljo, dogodke se vedno zapise, slike pa ne.
+Ce tok tece, sliko prebere z ``/snapshot.jpg``. Ta koncna tocka vrne
+polni senzorski still, iste locljivosti kot neposredni ``picamera2``.
+Ce toka ni, odpre ``picamera2``. Ce tok in ``picamera2`` nista na voljo,
+dogodke se vedno zapise, slike pa ne.
 
 ``--dry-run`` namerno izklopi kamero in pusti samo zapis dogodkov, tudi
 ce bi kamera sicer bila na voljo. Tako se veriga preveri v SITL.
@@ -208,11 +209,12 @@ class VehicleState:
 class Camera:
     """Ovoj nad zajemom slik.
 
-    Prednost ima ``drone-camera`` ``/snapshot.jpg`` (preview okvir iz streama,
-    isti kot rocni shutter). Ob zagonu caka, da stream postane dosegljiv, da
-    ne ukrade Picamera2 in s tem ubije zivi predogled. Ce stream po cakanju
-    se vedno ne tece, odpre neposredni ``picamera2``. ``available`` je
-    ``False`` le, ce nobena pot ne dela.
+    Prednost ima ``drone-camera`` ``/snapshot.jpg`` (polni senzorski still,
+    ista locljivost kot rocni shutter in kot neposredni ``picamera2``).
+    Ob zagonu caka, da stream postane dosegljiv, da ne ukrade Picamera2
+    in s tem ubije zivi predogled. Ce stream po cakanju se vedno ne tece,
+    odpre neposredni ``picamera2``. ``available`` je ``False`` le, ce
+    nobena pot ne dela.
     """
 
     def __init__(
@@ -235,13 +237,11 @@ class Camera:
             self.reason = "izbran --dry-run"
             return
 
-        # Skupna pot z dashboardom: stream drzi kamero, snapshot = preview.
+        # Skupna pot z dashboardom: stream drzi kamero, snapshot = polni still.
         if self._wait_for_stream(stream_wait_s):
             self._mode = "stream"
             self.available = True
-            if not self.width or not self.height:
-                self.width, self.height = 1280, 720
-            print(f"[camera] uporabljam stream preview {self._stream_url}",
+            print(f"[camera] uporabljam stream still {self._stream_url}",
                   flush=True)
             return
 
