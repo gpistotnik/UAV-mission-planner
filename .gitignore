@@ -14,7 +14,11 @@ node_modules/
 .pytest_cache/
 pytest-cache-files-*/
 # Surovi zapisi letov in izhod analize --- podatki, ne koda.
-flightlogs/
+# Izjema so dnevniki funkcionalnega preizkusa 20. 10. 2026.
+flightlogs/*
+!flightlogs/20261020-152640_nova-misija/
+!flightlogs/20261020-152752_nova-misija/
+!flightlogs/20261020-153312_nova-misija/
 run/
 # Lokalne OSM ploščice Slovenije (scripts/download_slovenia_tiles.py) — GB, ne v git.
 data/tiles/
