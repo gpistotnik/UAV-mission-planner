@@ -18,7 +18,10 @@ Algoritem:
 4. Vsaka črta se preseka z (rotiranim) poligonom. Preseki — segmenti —
    tvorijo posamezno »progo«; vsaka naslednja proga se obrne v
    nasprotno smer (boustrophedon / »volovska steza«).
-5. Vsi nastali vogali se zavrtijo nazaj in projicirajo v WGS84.
+5. Vzdolž vsake proge se vstavijo postanki na ``trigger_distance``.
+   Konec proge je vedno vključen. Zavoji med progami ostanejo brez
+   vmesnih točk.
+6. Točke se zavrtijo nazaj in projicirajo v WGS84.
 
 Vse formule sledijo standardni geometriji fotogrametrične podloge:
 
@@ -174,15 +177,17 @@ def plan_grid_mission(
             pieces = sorted(list(inter.geoms), key=lambda g: g.coords[0][0])
         else:
             continue
-        # Vsak kos: dva vogala (začetek + konec).
+        # Vsak kos: postanki vzdolž proge, konec je vedno vključen.
         for piece in pieces:
             x_coords = sorted([c[0] for c in piece.coords])
             ax, bx = x_coords[0], x_coords[-1]
+            y = y_for(piece)
             # Boustrophedon: pari prog (0, 2, 4 …) gredo levo→desno, lihe desno→levo.
             if i % 2 == 0:
-                segments_rot.append([(ax, y_for(piece)), (bx, y_for(piece))])
+                start, end = (ax, y), (bx, y)
             else:
-                segments_rot.append([(bx, y_for(piece)), (ax, y_for(piece))])
+                start, end = (bx, y), (ax, y)
+            segments_rot.append(sample_segment(start, end, trigger_dist))
 
     # 6) Razvrstitev: po vrstnem redu prog
     # (zdaj že iz urejene zanke ‘for i, ln in enumerate(lines)’)
@@ -211,8 +216,36 @@ def plan_grid_mission(
         trigger_distance_m=trigger_dist,
         total_distance_m=total,
         num_lines=len(segments_rot),
-        estimated_images=int(math.ceil(total / trigger_dist)) if trigger_dist > 0 else 0,
+        estimated_images=len(waypoints_lonlat),
     )
+
+
+def sample_segment(
+    start: tuple[float, float],
+    end: tuple[float, float],
+    step_m: float,
+) -> list[tuple[float, float]]:
+    """Točke od začetka do konca v korakih ``step_m``. Konec je vedno vključen.
+
+    Zadnji razmik je lahko krajši od koraka. Če je odsek krajši od koraka,
+    ostaneta samo krajišči. Ničelna dolžina vrne samo začetek.
+    """
+    x0, y0 = start
+    x1, y1 = end
+    dx, dy = x1 - x0, y1 - y0
+    length = math.hypot(dx, dy)
+    if length <= 1e-6:
+        return [start]
+    if step_m <= 0 or length <= step_m:
+        return [start, end]
+    points = [start]
+    dist = step_m
+    while dist < length - 1e-3:
+        t = dist / length
+        points.append((x0 + dx * t, y0 + dy * t))
+        dist += step_m
+    points.append(end)
+    return points
 
 
 def y_for(piece: LineString) -> float:

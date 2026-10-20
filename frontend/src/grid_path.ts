@@ -45,6 +45,24 @@ function bbox(pts: Pt[]): [number, number, number, number] {
   return [minx, miny, maxx, maxy];
 }
 
+/** Točke od začetka do konca v korakih `step`. Konec je vedno vključen. */
+function sampleSegment(a: Pt, b: Pt, step: number): Pt[] {
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const length = Math.hypot(dx, dy);
+  if (length <= 1e-6) return [a];
+  if (step <= 0 || length <= step) return [a, b];
+  const pts: Pt[] = [a];
+  let dist = step;
+  while (dist < length - 1e-3) {
+    const t = dist / length;
+    pts.push({ x: a.x + dx * t, y: a.y + dy * t });
+    dist += step;
+  }
+  pts.push(b);
+  return pts;
+}
+
 /** Vrne presek vodoravne crte y=y0 z poligonom kot urejen seznam x-presekov. */
 function horizontalIntersections(poly: Pt[], y0: number): number[] {
   const xs: number[] = [];
@@ -132,8 +150,10 @@ export function planGridClient(map: MapElement, drone: DronePayload): GridResult
         let p1: Pt, p2: Pt;
         if (lineIdx % 2 === 0) { p1 = { x: ax, y }; p2 = { x: bx, y }; }
         else                    { p1 = { x: bx, y }; p2 = { x: ax, y }; }
-        // Rotacija nazaj v poligonski referencni sistem
-        allLocal.push(rotate(p1, alpha), rotate(p2, alpha));
+        // Postanki vzdolž proge; zavoj do naslednje proge ostane brez točk.
+        for (const p of sampleSegment(p1, p2, triggerDist)) {
+          allLocal.push(rotate(p, alpha));
+        }
         numLines++;
       }
       y += lineSpacing;

@@ -7,7 +7,7 @@ import pytest
 
 from missions.services.grid_planner import (
     CameraSpec, GridParams, footprint_dimensions_m, gsd_cm_per_px,
-    plan_grid_mission,
+    plan_grid_mission, sample_segment,
 )
 
 # DJI Mavic 3 (Hasselblad L2D-20c)
@@ -68,12 +68,35 @@ def test_boustrophedon_alternates_direction() -> None:
     params = GridParams(altitude_m=80, front_overlap_pct=75,
                         side_overlap_pct=65, track_angle_deg=0)
     plan = plan_grid_mission(poly, MAVIC3, params)
-    # waypoints prihajajo v parih (start, end). Smer = predznak razlike v dolžini.
-    pairs = list(zip(plan.waypoints[::2], plan.waypoints[1::2]))
-    directions = [b[0] - a[0] for a, b in pairs]
-    # Zaporedne smeri morajo imeti različen predznak (boustrophedon).
+    lines = _lines_by_latitude(plan.waypoints)
+    assert len(lines) == plan.num_lines
+    assert any(len(line) > 2 for line in lines)
+    directions = [line[-1][0] - line[0][0] for line in lines]
     for d1, d2 in zip(directions, directions[1:]):
         assert d1 * d2 < 0, f"Pričakovan boustrophedon, dobil {directions}"
+
+
+def test_sample_segment_includes_end_and_short_remainder() -> None:
+    points = sample_segment((0.0, 0.0), (25.0, 0.0), 8.0)
+    assert points[0] == (0.0, 0.0)
+    assert points[-1] == (25.0, 0.0)
+    assert len(points) == 5
+    gaps = [points[i + 1][0] - points[i][0] for i in range(len(points) - 1)]
+    assert gaps[:-1] == pytest.approx([8.0, 8.0, 8.0])
+    assert gaps[-1] == pytest.approx(1.0)
+
+
+def _lines_by_latitude(
+    waypoints: list[tuple[float, float]], tol: float = 1e-5,
+) -> list[list[tuple[float, float]]]:
+    """Združi zaporedne točke iste vzhodno-zahodne proge."""
+    lines: list[list[tuple[float, float]]] = [[waypoints[0]]]
+    for point in waypoints[1:]:
+        if abs(point[1] - lines[-1][-1][1]) <= tol:
+            lines[-1].append(point)
+        else:
+            lines.append([point])
+    return lines
 
 
 def test_invalid_overlap_raises() -> None:

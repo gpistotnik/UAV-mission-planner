@@ -93,8 +93,9 @@ def test_map_zone_expands_to_multiple_points(mission: Mission) -> None:
     assert len(pts) > 4
     assert all(p.source == "MAP" for p in pts)
     assert all(p.map_block is not None for p in pts)
-    assert all(p.action_type == "PHOTO" for p in pts)
-    assert all(p.trigger_distance_m and p.trigger_distance_m > 0 for p in pts)
+    assert all(p.action_type == "NONE" for p in pts)
+    assert all(p.hover_time_s == pytest.approx(2.0) for p in pts)
+    assert all(p.trigger_distance_m is None for p in pts)
 
 
 def test_crosshatch_produces_more_points_than_grid(mission: Mission) -> None:

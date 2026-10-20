@@ -9,10 +9,14 @@ poslusa MAVLink tok in ob dogodkih zajema posnetke:
 Dogodek                      Pomen
 ===========================  =================================================
 ``CAMERA_TRIGGER``           avtopilot je sprozil kamero (posledica
-                             ``DO_SET_CAM_TRIGG_DIST``). Na terenskih letih
-                             tega sporocila ni bilo.
-``MISSION_ITEM_REACHED``     dosezen je element misije. Na terenu je bil to
-                             vir zajema; ista ``seq`` sprozi najvec enkrat.
+                             ``DO_SET_CAM_TRIGG_DIST``). Vir zajema pri
+                             kartirnih letih 29. 8. 2026. Pri zapisih
+                             z 11. 8. in pri navigacijskih misijah 29. 8.
+                             tega sporocila ni.
+``MISSION_ITEM_REACHED``     dosezen je element misije. Vir zajema pri
+                             zapisih z 11. 8. in pri navigacijskih
+                             misijah 29. 8.; ista ``seq`` sprozi najvec
+                             enkrat.
 ``COMMAND_LONG``             rocna sprozitev (``IMAGE_START_CAPTURE``)
 ===========================  =================================================
 

@@ -17,6 +17,10 @@ from typing import TYPE_CHECKING, Optional
 
 from .grid_planner import CameraSpec, GridParams, plan_grid_mission
 
+# Čas lebdenja na vsakem mestu slike kartiranja. ArduCopter zaključi
+# NAV_WAYPOINT šele po tem času, zato je to umiritev pred posnetkom.
+MAP_HOVER_S = 2.0
+
 if TYPE_CHECKING:  # pragma: no cover
     from ..models import Mission
 
@@ -27,11 +31,10 @@ class FlightPoint:
 
     ``source`` loci, ali tocka izhaja iz rocno postavljenega waypointa
     (``"WP"``) ali je bila generirana iz mapping zone (``"MAP"``). Pri
-    ``MAP`` je izpolnjen tudi ``map_block`` (ID gradnika, ki jo je
-    generiral) in ``trigger_distance_m`` (razdalja med posnetki, ki jo
-    izracuna generator mreze) --- oboje potrebuje gradnik MAVLink misije,
-    da namesto tisocih posameznih ukazov za slikanje uporabi enega samega
-    ``DO_SET_CAM_TRIGG_DIST`` na zacetku bloka.
+    ``MAP`` je izpolnjen ``map_block`` (ID gradnika, ki jo je generiral).
+    Kartirne tocke so postanki: ``hover_time_s`` je cas lebdenja, slika
+    nastane ob zakljucku tega cakanja. ``trigger_distance_m`` ostane
+    prazen, zato gradnik misije ne vstavi ``DO_SET_CAM_TRIGG_DIST``.
     """
     order: int
     lat: float
@@ -119,12 +122,11 @@ def linearize_mission(mission: "Mission") -> list[FlightPoint]:
                     speed_ms=float(e.speed_ms) if e.speed_ms is not None else None,
                     heading_mode="AUTO",
                     gimbal_pitch_deg=-90.0,
-                    hover_time_s=0.0,
-                    action_type="PHOTO",
+                    hover_time_s=MAP_HOVER_S,
+                    action_type="NONE",
                     source="MAP",
                     element_id=e.pk,
                     map_block=e.pk,
-                    trigger_distance_m=plan.trigger_distance_m or None,
                 ))
                 order += 1
     return out
