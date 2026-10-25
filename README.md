@@ -39,21 +39,23 @@ Leaflet + TS   ──►   MissionElement (DB)
 | 7     | Prenos na Pixhawk + kontrola (arm / mode / start)       | ✅  | 41    |
 | 8     | Telemetrija, nadzorna plošča, video stream              | ✅  | E2E   |
 | 9     | Zapis telemetrije na disk (JSONL)                       | ✅  | 49    |
-| 10    | Časovno sledljiv zajem slik + EXIF georeferenca         | ✅  | 4     |
-| 11    | Poletna analiza in metrike validacije                   | ✅  | 28    |
+| 10    | Časovno sledljiv zajem slik + EXIF georeferenca         | ✅  | 5     |
+| 11    | Poletna analiza in metrike validacije                   | ✅  | 34    |
 | 12    | Samodejni testni polet (vzlet, lebdenje, pristanek)     | ✅  | 44    |
-| 13    | Preklop Wi-Fi prek fizičnega stikala (GPIO19)           | ✅  | 27    |
+| 13    | Samodejni preklop odjemalec/dostopna točka              | ✅  | 27    |
 
-Skupno **316 testov**, vsi prehajajo (`python -m pytest missions core analysis`
-→ 315 prešlo, 1 preskočen). Privzeti `python -m pytest` (testpaths
-`missions/tests` + `analysis`) zbere 306 (305 prešlo, 1 preskočen); dodatnih
-10 je E2E testov koncišč v `core/tests`. Stolpec Testi zgoraj šteje enotne
-teste posamezne logike (skupaj 224); preostalih 92 pokriva HTTP sloj
+Skupno **324 testov** (`python -m pytest missions core analysis`
+→ 323 prešlo, 1 preskočen). Privzeti `python -m pytest` (testpaths
+`missions/tests` + `analysis`) zbere 314 (313 prešlo, 1 preskočen); dodatnih
+10 je testov v `core/tests`. Stolpec Testi zgoraj šteje enotne
+teste posamezne logike (skupaj 232); preostalih 92 pokriva HTTP sloj
 (`test_views.py`, 64 E2E), galerijo, karto in captive portal. ¹ En EXIF test
 (`test_camera_trigger.py`) se preskoči, kadar `piexif` ni nameščen — na dronu
-je; `scripts/camera_trigger.py` sicer teče na Raspberry Pi-ju in ga pokriva
-integracijski test na napravi, ne enotni test, brez kamere pa teče v
-`--dry-run` načinu, kar je uporabljeno za preverjanje verige v SITL simulatorju.
+je. `scripts/camera_trigger.py` na Raspberry Pi-ju ob dogodku zapiše čas
+in, če je kamera na voljo, datoteko JPEG. Enotni testi z `--dry-run` te
+datoteke ne ustvarijo in dejanskega zajema ne potrdijo. Test z nadomestnim
+virom JPEG preveri le, da se prejeti zapis shrani. V SITL ta pot preverja
+programsko verigo brez optičnega senzorja.
 
 ## Hitri zagon
 

@@ -1,4 +1,10 @@
-"""Filesystem testi procesa za časovno sledljiv zajem slik."""
+"""Testi procesa za časovno sledljiv zajem slik.
+
+Testi z ``dry_run=True`` preverijo le zapis dogodka. Kamere ne odprejo
+in datoteke JPEG ne ustvarijo. Zapis ``captured: false`` v takem testu
+zato ne pomeni neuspešnega fotografiranja na terenu in tudi ne potrjuje,
+da bi klic na strojni opremi vrnil sliko.
+"""
 from __future__ import annotations
 
 import argparse
@@ -75,6 +81,37 @@ def test_capture_is_skipped_when_usb_is_missing(
 
     assert agent.counter == 0
     assert "USB medij ni na voljo" in capsys.readouterr().err
+
+
+def test_substitute_jpeg_source_is_stored(tmp_path: Path, monkeypatch) -> None:
+    """Nadomestni vir JPEG preveri zapis datoteke brez fizične kamere.
+
+    ``dry_run`` te poti ne vključi. Test zato zamenja odgovor tokovne
+    poti z majhnim JPEG in preveri, da ``capture`` datoteko shrani.
+    """
+    payload = b"\xff\xd8\xff\xd9"
+
+    class _Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def read(self, n: int = -1) -> bytes:
+            return payload if n < 0 else payload[:n]
+
+    monkeypatch.setattr(
+        "urllib.request.urlopen", lambda *args, **kwargs: _Response())
+    from scripts.camera_trigger import Camera
+
+    camera = Camera(dry_run=False, stream_wait_s=0.0)
+    assert camera.available is True
+    destination = tmp_path / "nadomestni.jpg"
+    times = camera.capture(destination)
+    assert times is not None
+    assert destination.read_bytes().startswith(b"\xff\xd8")
+    assert "t_capture" in times and "t_done" in times
 
 
 @pytest.mark.skipif(piexif is None, reason="piexif ni nameščen")

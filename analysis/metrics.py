@@ -13,7 +13,7 @@ Metrika                                 Funkcija
 natancnost sledenja trajektoriji        :func:`cross_track_stats`
 latenca komunikacije                    :func:`telemetry_rate_stats`
 zanesljivost izvedbe misije             :func:`mission_completion`
-tocnost zajema podatkov                 :func:`capture_accuracy`
+položaj ob sprožilnem dogodku         :func:`capture_accuracy`
 odpornost na motnje                     :func:`altitude_stats` +
                                         :func:`cross_track_stats` (primerjava
                                         letov pri razlicnem vetru)
@@ -395,16 +395,18 @@ def capture_accuracy(
     captures: Sequence[dict[str, Any]],
     planned: Sequence[tuple[float, float]],
 ) -> dict[str, Any]:
-    """Tocnost zajema: razdalja med nacrtovano in dejansko foto lokacijo [m].
+    """Položaj ob sprožilnem dogodku, ne fizična ekspozicija.
 
-    Za vsak posnetek poisce **najblizjo nacrtovano tocko** in zabelezi
-    razdaljo. Poroca tudi statistiko zakasnitve med MAVLink dogodkom in
-    ekspozicijo, ki je pri fotogrametriji glavni sistematicni vir napake.
+    Za vsak zapis s ``captured`` True poišče razdaljo med koordinato v
+    zapisu in najbližjo načrtovano točko. Koordinata pripada trenutku
+    sprožilnega dogodka. Polje ``trigger_to_capture_ms`` meri čas od
+    prejema tega dogodka do začetka programskega klica za zajem, ne do
+    fizične ekspozicije senzorja.
     """
     if not captures:
         return {"n": 0}
-    # Prostorska napaka in zakasnitev veljata za uspesno zapisane JPEG-e.
-    # Zapis s ``captured: false`` ima lahko koordinate, a slike ni.
+    # Razdalja velja za zapise, pri katerih je klic za zajem vrnil uspeh.
+    # Zapis s ``captured: false`` ima lahko koordinate, a klic ni uspel.
     saved = [c for c in captures if c.get("captured") is True]
     dists: list[float] = []
     unmatched = 0

@@ -189,7 +189,7 @@ def render_markdown(r: dict[str, Any]) -> str:
         f"| {_fmt(tl,'p95')} | {_fmt(tl,'max')} | {_fmt(tl,'n')} |",
         f"| Odstopanje lokacije posnetka [m] | {_fmt(cd,'rms')} | {_fmt(cd,'mean')} "
         f"| {_fmt(cd,'p95')} | {_fmt(cd,'max')} | {_fmt(cd,'n')} |",
-        f"| Zakasnitev sprozitve [ms] | {_fmt(ct,'rms')} | {_fmt(ct,'mean')} "
+        f"| Cas do zacetka programskega klica [ms] | {_fmt(ct,'rms')} | {_fmt(ct,'mean')} "
         f"| {_fmt(ct,'p95')} | {_fmt(ct,'max')} | {_fmt(ct,'n')} |",
         "",
         "## Izvedba misije",
@@ -235,23 +235,23 @@ def _nearest_xy(
 
 _PLOT_TEXT = {
     "sl": {
-        "planned": "nacrtovano",
-        "flown": "dejansko",
-        "images": "posnetki",
+        "planned": "načrtovana",
+        "flown": "dejanska",
+        "images": "zapis zajema",
         "reached": "MISSION_ITEM_REACHED",
         "east": "vzhod [m]",
         "north": "sever [m]",
         "window": "Analizno okno misije",
         "airborne": "Celoten let od aktivacije do deaktivacije",
-        "time": "cas od zacetka [s]",
+        "time": "čas od začetka [s]",
         "cross": "odstopanje [m]",
-        "cross_title": "Odstopanje od nacrtovane trajektorije",
-        "alt": "visina AGL [m]",
-        "alt_title": "Profil visine",
-        "planned_alt": "nacrtovano {alt:g} m",
-        "capture_x": "razdalja do najblizje nacrtovane tocke [m]",
-        "capture_y": "stevilo posnetkov",
-        "capture_title": "Tocnost zajema",
+        "cross_title": "Odstopanje od načrtovane trajektorije",
+        "alt": "višina AGL [m]",
+        "alt_title": "Profil višine",
+        "planned_alt": "načrtovana {alt:g} m",
+        "capture_x": "razdalja do najbližje načrtovane točke [m]",
+        "capture_y": "število posnetkov",
+        "capture_title": "Položaj ob sprožilnem dogodku",
     },
     "en": {
         "planned": "planned",
@@ -307,23 +307,6 @@ def _draw_track(
     if cxy:
         ax.plot([p[0] for p in cxy], [p[1] for p in cxy],
                 "o", color="#15803d", ms=4, alpha=0.7, label=text["images"])
-    reached_xy = []
-    for row in rows:
-        if row.get("type") != "MISSION_ITEM_REACHED" or row.get("t") is None:
-            continue
-        t = float(row["t"])
-        if track and not (track[0].t - 0.5 <= t <= track[-1].t + 0.5):
-            continue
-        xy = _nearest_xy(plane, track, t)
-        if xy is None:
-            continue
-        reached_xy.append((xy, row.get("seq")))
-    if reached_xy:
-        ax.plot([p[0][0] for p in reached_xy], [p[0][1] for p in reached_xy],
-                "D", color="#111827", ms=5, label=text["reached"])
-        for (x, y), seq in reached_xy:
-            ax.annotate(str(seq), (x, y), textcoords="offset points",
-                        xytext=(3, 3), fontsize=7, color="#111827")
     ax.set_aspect("equal", "datalim")
     ax.set_xlabel(text["east"])
     ax.set_ylabel(text["north"])
@@ -366,8 +349,10 @@ def _plot_all(
         ax.plot(ts, errs, color="#dc2626", lw=0.9)
         tt = result.get("trajectory_tracking", {})
         if tt.get("rms") is not None:
+            rms_txt = (f"{tt['rms']:.2f}".replace(".", ",")
+                       if lang == "sl" else f"{tt['rms']}")
             ax.axhline(tt["rms"], color="#1f6feb", ls="--", lw=1,
-                       label=f"RMS = {tt['rms']} m")
+                       label=f"RMSE = {rms_txt} m")
             ax.legend()
         ax.set_xlabel(text["time"])
         ax.set_ylabel(text["cross"])
